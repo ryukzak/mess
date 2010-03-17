@@ -54,7 +54,7 @@ start_link(Port) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Port]) ->
-		case clerk:start(Port) of
+		case clerk_listener:start(Port) of
 				{ok, Pid} ->
 						{ok, Pid, #state{}};
 				Error ->

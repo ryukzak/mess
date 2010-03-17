@@ -52,15 +52,16 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
 		{ok, {{one_for_one, 5, 10},
-					[{controller_listener_sup,
+					[
+					 {controller_listener_sup,
 						{listener_sup, start_link,
 						 [controller_listener_sup, controller_listener, 9993, sdk]},
 						permanent, 2000, supervisor, [listener_sup]}
 					 
-					 , {teminal_listener_sup,
-							{listener_sup, start_link,
-							 [terminal_listener_sup, terminal_listener, 9994, terminal]},
-							permanent, 2000, supervisor, [listener_sup]}
+%% 					 , {teminal_listener_sup,
+%% 							{listener_sup, start_link,
+%% 							 [terminal_listener_sup, terminal_listener, 9994, terminal]},
+%% 							permanent, 2000, supervisor, [listener_sup]}
 					 
 					 , {clerk_sup, {clerk_sup, start_link, [9990]},
 							permanent, 2000, supervisor, [clerk_sup]}
