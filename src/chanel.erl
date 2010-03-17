@@ -100,7 +100,10 @@ handle_cast({cast, Msg}, #state{mod = Mod
 																, sock = Sock
 															 } = State) ->
 		{TCPMsg, CS0} = Mod:cast(Msg, CS),
-		gen_tcp:send(Sock, TCPMsg),
+		case TCPMsg of
+				none -> ok;
+				Msg when is_list(Msg) -> gen_tcp:send(Sock, TCPMsg)
+		end,
 		{noreply, State#state{chanel_state = CS0}};
 handle_cast(_Msg, State) ->
 		{noreply, State}.

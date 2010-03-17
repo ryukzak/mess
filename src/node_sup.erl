@@ -55,7 +55,7 @@ init([]) ->
 					[
 					 {controller_listener_sup,
 						{listener_sup, start_link,
-						 [controller_listener_sup, controller_listener, 9993, sdk]},
+						 [controller_listener_sup, controller_listener, 9993, rfid_reader]},
 						permanent, 2000, supervisor, [listener_sup]}
 					 
 %% 					 , {teminal_listener_sup,
