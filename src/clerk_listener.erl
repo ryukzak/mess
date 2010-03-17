@@ -6,7 +6,7 @@
 %%% @end
 %%% Created :  2 Mar 2010 by Ryukzak Neskazov <>
 %%%-------------------------------------------------------------------
--module(cleark_listener).
+-module(clerk_listener).
 
 -export([
 				 start/1

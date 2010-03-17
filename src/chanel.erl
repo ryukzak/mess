@@ -121,9 +121,9 @@ tcp_loop(Mod, Init, Buffer, State) ->
 				none -> {Init, Buffer, State};
 				{Msg, [], Buffer0} ->
 						case Init of
-								true -> State0 = Mod:tcp_cast(Msg, State),
+								false -> State0 = Mod:tcp_cast(Msg, State),
 											  tcp_loop(Mod, true, Buffer0, State0);
-								false -> {Init0, State0} = Mod:init(Msg, State),
+								true -> {Init0, State0} = Mod:init(Msg, State),
 												 tcp_loop(Mod, Init0, Buffer0, State0)
 						end;
 				X -> io:format("Error in chanel parser: ~p~n", [X])

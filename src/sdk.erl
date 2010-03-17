@@ -14,7 +14,7 @@
 -record(sdk,{id, pid}).
 -record(data,{number, from, fib}).
 
-init_bool() -> false.
+init_bool() -> true.
 
 enviroment() ->
 		{atomic, ok} = mnesia:create_table(sdk, [{attributes,record_info(fields, sdk)}]),
@@ -24,7 +24,7 @@ enviroment() ->
 init(["id", IdStr], _State) ->
 		Id = list_to_integer(IdStr),
 		mnesia:transaction(fun() -> mnesia:write(#sdk{id = Id, pid = self()}) end),
-		{true, #state{id = Id}}.
+		{false, #state{id = Id}}.
 
 tcp_cast(["number", NumberStr], #state{id = Id} = State) ->
 		Number = list_to_integer(NumberStr),
