@@ -9,7 +9,7 @@
 				]).
 
 -record(state,{id
-							 , where_request = []
+               , where_request = []
 							 , x
 							 , y
 							}).
@@ -22,7 +22,7 @@ init_bool() -> true.
 enviroment() ->
 		{atomic, ok} = mnesia:create_table(rfid_reader, [{attributes,record_info(fields, rfid_reader)}]),
 		{atomic, ok} = mnesia:create_table(mark_info, [{attributes,record_info(fields, mark_info)}
-																									 , {type, bag}
+                                                   , {type, bag}
 																									]),
 		ok.
 
