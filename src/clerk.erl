@@ -11,7 +11,9 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0
+				 , enviroment/1
+				]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -71,11 +73,11 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({enviroment, Env}, _From, #state{ enviroment=Enviroment
-																} = State) ->
+																						 } = State) ->
 		case lists:member(Env, Enviroment) of
 				true -> {reply, true, State};
 				false -> Reply = Env:enviroment(),
-								 {reply, Reply, State}
+								 {reply, Reply, State#state{enviroment=[Env|Enviroment]}}
 		end;
 handle_call(_Request, _From, State) ->
 		Reply = ok,

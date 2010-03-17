@@ -58,7 +58,14 @@ cast(Pid, Msg) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Sock, Mod]) ->
-		{ok, #state{sock = Sock, mod = Mod, init = false}}.
+		case clerk:enviroment(Mod) of
+				ok ->
+						Init = Mod:init_bool(),
+						{ok, #state{sock = Sock, mod = Mod, init = Init}};
+				{error, Reason} ->
+						{stop, Reason}
+		end.
+						
 
 %%--------------------------------------------------------------------
 %% @private

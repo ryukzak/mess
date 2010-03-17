@@ -21,12 +21,12 @@
 
 start(Port) ->
 		{ok, LSock} = gen_tcp:listen(Port, [list, {active, false}]),
-		Pid = spawn(fun () -> register(clerk,self()),
+		Pid = spawn(fun () -> register(clerk_listener,self()),
 													loop(#state{lsock = LSock}) end),
 		{ok, Pid}.
 
 stop() ->
-		clerk ! stop.
+		clerk_listener ! stop.
 
 loop(#state{lsock = LSock} = State) ->
 		case gen_tcp:accept(LSock, 500) of

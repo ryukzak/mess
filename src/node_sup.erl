@@ -62,6 +62,9 @@ init([]) ->
 %% 							{listener_sup, start_link,
 %% 							 [terminal_listener_sup, terminal_listener, 9994, terminal]},
 %% 							permanent, 2000, supervisor, [listener_sup]}
+
+					 , {clerk, {clerk, start_link, []},
+							permanent, 2000, worker, [clerk_sup]}
 					 
 					 , {clerk_sup, {clerk_sup, start_link, [9990]},
 							permanent, 2000, supervisor, [clerk_sup]}
