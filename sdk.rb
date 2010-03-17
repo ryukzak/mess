@@ -17,10 +17,10 @@ end
 begin 
   puts "Connect to cluster"
   sock = TCPSocket.new actual_ip, 9993
-  sock.puts "id #{n}"
+  sock.puts "id 0"
+  sock.puts "number 35"
 rescue
   puts "Error: #{$!}"
 else
-  sock.puts "Good dye my dear friend. It's SDK."
   sock.close
 end
