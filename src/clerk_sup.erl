@@ -12,8 +12,8 @@
 
 %% API
 -export([
-				 start_link/1
-				]).
+         start_link/1
+        ]).
 
 %% supervisor_bridge callbacks
 -export([init/1, terminate/2]).
@@ -34,7 +34,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Port) ->
-		supervisor_bridge:start_link({local, ?SERVER}, ?MODULE, [Port]).
+    supervisor_bridge:start_link({local, ?SERVER}, ?MODULE, [Port]).
 
 %%%===================================================================
 %%% supervisor_bridge callbacks
@@ -54,13 +54,13 @@ start_link(Port) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Port]) ->
-		case clerk_listener:start(Port) of
-				{ok, Pid} ->
-						{ok, Pid, #state{}};
-				Error ->
-						io:format("~p~n", [Error]),
-						Error
-		end.
+    case clerk_listener:start(Port) of
+        {ok, Pid} ->
+            {ok, Pid, #state{}};
+        Error ->
+            io:format("~p~n", [Error]),
+            Error
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -74,8 +74,8 @@ init([Port]) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-		clerk_listener:stop().
-				
+    clerk_listener:stop().
+
 
 %%%===================================================================
 %%% Internal functions

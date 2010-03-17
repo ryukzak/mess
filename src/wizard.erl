@@ -12,12 +12,12 @@
 
 %% API
 -export([start_link/0
-				 , get_node_ip/0
-				]).
+         , get_node_ip/0
+        ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-				 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
 
@@ -35,10 +35,10 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-		gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 get_node_ip() ->
-		gen_server:call(?SERVER, get_ip).
+    gen_server:call(?SERVER, get_ip).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -56,7 +56,7 @@ get_node_ip() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-		{ok, #state{}}.
+    {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -74,11 +74,11 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call(get_ip, _From, State) ->
 %% 		Reply = <<127,0,0,1>>,
-		Reply = "127.0.0.1",
-		{reply, Reply, State};
+    Reply = "127.0.0.1",
+    {reply, Reply, State};
 handle_call(_Request, _From, State) ->
-		Reply = ok,
-		{reply, Reply, State}.
+    Reply = ok,
+    {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -91,7 +91,7 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
-		{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -104,7 +104,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
-		{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -118,7 +118,7 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-		ok.
+    ok.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -129,7 +129,7 @@ terminate(_Reason, _State) ->
 %% @end
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-		{ok, State}.
+    {ok, State}.
 
 %%%===================================================================
 %%% Internal functions

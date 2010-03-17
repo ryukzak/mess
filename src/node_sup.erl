@@ -12,7 +12,7 @@
 
 %% API
 -export([start_link/0
-				]).
+        ]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -31,7 +31,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-		supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -51,27 +51,27 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-		{ok, {{one_for_one, 5, 10},
-					[
-					 {controller_listener_sup,
-						{listener_sup, start_link,
-						 [controller_listener_sup, controller_listener, 9993, rfid_reader]},
-						permanent, 2000, supervisor, [listener_sup]}
-					 
+    {ok, {{one_for_one, 5, 10},
+          [
+           {controller_listener_sup,
+            {listener_sup, start_link,
+             [controller_listener_sup, controller_listener, 9993, rfid_reader]},
+            permanent, 2000, supervisor, [listener_sup]}
+           
 %% 					 , {teminal_listener_sup,
 %% 							{listener_sup, start_link,
 %% 							 [terminal_listener_sup, terminal_listener, 9994, terminal]},
 %% 							permanent, 2000, supervisor, [listener_sup]}
-
-					 , {clerk, {clerk, start_link, []},
-							permanent, 2000, worker, [clerk_sup]}
-					 
-					 , {clerk_sup, {clerk_sup, start_link, [9990]},
-							permanent, 2000, supervisor, [clerk_sup]}
-					 
-					 , {wizard, {wizard, start_link, []},
-							permanent, 2000, worker, [wizard]}
- 					]}}.
+           
+           , {clerk, {clerk, start_link, []},
+              permanent, 2000, worker, [clerk_sup]}
+           
+           , {clerk_sup, {clerk_sup, start_link, [9990]},
+              permanent, 2000, supervisor, [clerk_sup]}
+           
+           , {wizard, {wizard, start_link, []},
+              permanent, 2000, worker, [wizard]}
+          ]}}.
 
 %%%===================================================================
 %%% Internal functions

@@ -1,13 +1,13 @@
 -module(sdk).
 
 -export([init/2
-				 , tcp_cast/2
-				 , cast/2
-				 , terminate/1
-				 , enviroment/0
-				 , fib/1
-				 , init_bool/0
-				]).
+         , tcp_cast/2
+         , cast/2
+         , terminate/1
+         , enviroment/0
+         , fib/1
+         , init_bool/0
+        ]).
 
 -record(state,{id}).
 
@@ -17,26 +17,26 @@
 init_bool() -> true.
 
 enviroment() ->
-		{atomic, ok} = mnesia:create_table(sdk, [{attributes,record_info(fields, sdk)}]),
-		{atomic, ok} = mnesia:create_table(data, [{attributes,record_info(fields, data)}]),
-		ok.
+    {atomic, ok} = mnesia:create_table(sdk, [{attributes,record_info(fields, sdk)}]),
+    {atomic, ok} = mnesia:create_table(data, [{attributes,record_info(fields, data)}]),
+    ok.
 
 init(["id", IdStr], _State) ->
-		Id = list_to_integer(IdStr),
-		mnesia:transaction(fun() -> mnesia:write(#sdk{id = Id, pid = self()}) end),
-		{false, #state{id = Id}}.
+    Id = list_to_integer(IdStr),
+    mnesia:transaction(fun() -> mnesia:write(#sdk{id = Id, pid = self()}) end),
+    {false, #state{id = Id}}.
 
 tcp_cast(["number", NumberStr], #state{id = Id} = State) ->
-		Number = list_to_integer(NumberStr),
-		mnesia:transaction(
-			fun() -> mnesia:write(#data{number = Number
-																	, from = Id
-																	, fib = fib(Number)
-																 }) end),
-		State.
+    Number = list_to_integer(NumberStr),
+    mnesia:transaction(
+      fun() -> mnesia:write(#data{number = Number
+                                  , from = Id
+                                  , fib = fib(Number)
+                                 }) end),
+    State.
 
 cast(Msg, State) ->
-		{Msg, State}.
+    {Msg, State}.
 
 %% fib(1) -> 1;
 %% fib(2) -> 1;
@@ -54,6 +54,6 @@ fib(2) -> 1;
 fib(N) -> fib(N - 1) + fib(N - 2).
 
 terminate(#state{id = Id}) ->
-		mnesia:transaction(fun() -> mnesia:delete({sdk, Id}) end),
-		ok.
+    mnesia:transaction(fun() -> mnesia:delete({sdk, Id}) end),
+    ok.
 

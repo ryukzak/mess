@@ -12,13 +12,13 @@
 
 %% API
 -export([start_link/2
-				 , parse/3
-				 , cast/2
-				]).
+         , parse/3
+         , cast/2
+        ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-				 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
 
@@ -37,10 +37,10 @@
 %%--------------------------------------------------------------------
 start_link(Sock, Mod) ->
 %% 		io:format("Chanel start link: ~p~n", [{Sock, Mod}]),
-		gen_server:start_link(?MODULE, [Sock, Mod], []).
+    gen_server:start_link(?MODULE, [Sock, Mod], []).
 
 cast(Pid, Msg) ->
-		gen_server:cast(Pid, {cast, Msg}).
+    gen_server:cast(Pid, {cast, Msg}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -58,14 +58,14 @@ cast(Pid, Msg) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Sock, Mod]) ->
-		case clerk:enviroment(Mod) of
-				ok ->
-						Init = Mod:init_bool(),
-						{ok, #state{sock = Sock, mod = Mod, init = Init}};
-				{error, Reason} ->
-						{stop, Reason}
-		end.
-						
+    case clerk:enviroment(Mod) of
+        ok ->
+            Init = Mod:init_bool(),
+            {ok, #state{sock = Sock, mod = Mod, init = Init}};
+        {error, Reason} ->
+            {stop, Reason}
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -82,8 +82,8 @@ init([Sock, Mod]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call(_Request, _From, State) ->
-		Reply = ok,
-		{reply, Reply, State}.
+    Reply = ok,
+    {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -96,17 +96,17 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({cast, Msg}, #state{mod = Mod
-																, chanel_state = CS
-																, sock = Sock
-															 } = State) ->
-		{TCPMsg, CS0} = Mod:cast(Msg, CS),
-		case TCPMsg of
-				none -> ok;
-				Msg when is_list(Msg) -> gen_tcp:send(Sock, TCPMsg)
-		end,
-		{noreply, State#state{chanel_state = CS0}};
+                                , chanel_state = CS
+                                , sock = Sock
+                               } = State) ->
+    {TCPMsg, CS0} = Mod:cast(Msg, CS),
+    case TCPMsg of
+        none -> ok;
+        Msg when is_list(Msg) -> gen_tcp:send(Sock, TCPMsg)
+    end,
+    {noreply, State#state{chanel_state = CS0}};
 handle_cast(_Msg, State) ->
-		{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -120,38 +120,38 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 
 tcp_loop(Mod, Init, Buffer, State) ->
-		case parse([], [], Buffer) of
-				none -> {Init, Buffer, State};
-				{Msg, [], Buffer0} ->
-						case Init of
-								false -> State0 = Mod:tcp_cast(Msg, State),
-											  tcp_loop(Mod, true, Buffer0, State0);
-								true -> {Init0, State0} = Mod:init(Msg, State),
-												 tcp_loop(Mod, Init0, Buffer0, State0)
-						end;
-				X -> io:format("Error in chanel parser: ~p~n", [X])
-		end.
+    case parse([], [], Buffer) of
+        none -> {Init, Buffer, State};
+        {Msg, [], Buffer0} ->
+            case Init of
+                false -> State0 = Mod:tcp_cast(Msg, State),
+                         tcp_loop(Mod, true, Buffer0, State0);
+                true -> {Init0, State0} = Mod:init(Msg, State),
+                        tcp_loop(Mod, Init0, Buffer0, State0)
+            end;
+        X -> io:format("Error in chanel parser: ~p~n", [X])
+    end.
 
 %%--------------------------------------------------------------------
 
 handle_info({tcp, _Port, Msg} = _Info, #state{buffer = Buffer
-																							, init = Init
-																							, chanel_state = CS
-																							, mod = Mod
-																						 } = State) ->
-		{Init0, Buffer0, CS0} = tcp_loop(Mod, Init, Buffer ++ Msg, CS),
-		{noreply, State#state{buffer = Buffer0
-													, init = Init0
-													, chanel_state = CS0
-												 }};
+                                              , init = Init
+                                              , chanel_state = CS
+                                              , mod = Mod
+                                             } = State) ->
+    {Init0, Buffer0, CS0} = tcp_loop(Mod, Init, Buffer ++ Msg, CS),
+    {noreply, State#state{buffer = Buffer0
+                          , init = Init0
+                          , chanel_state = CS0
+                         }};
 
 handle_info({tcp_closed, _Port} = _Info, State) ->
-		{stop, normal, State};
+    {stop, normal, State};
 
 handle_info(Info, State) ->
-		io:format("---------------------------------~n"),
-		io:format("controller Info: ~p~n", [Info]),
-		{noreply, State}.
+    io:format("---------------------------------~n"),
+    io:format("controller Info: ~p~n", [Info]),
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -165,14 +165,14 @@ handle_info(Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, #state{sock = Sock
-													, mod = Mod
-													, chanel_state = CS
-												 } = _State) ->
-		case CS of
-				undefined -> ok;
-				X -> Mod:terminate(X)
-		end,
-		gen_tcp:close(Sock).
+                          , mod = Mod
+                          , chanel_state = CS
+                         } = _State) ->
+    case CS of
+        undefined -> ok;
+        X -> Mod:terminate(X)
+    end,
+    gen_tcp:close(Sock).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -183,35 +183,35 @@ terminate(_Reason, #state{sock = Sock
 %% @end
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-		{ok, State}.
+    {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 parse(_Acc, _Wacc, []) ->
-		none;
+    none;
 
 parse(Acc, [], [10|Buffer]) ->
-		{lists:reverse(Acc), [], Buffer};
+    {lists:reverse(Acc), [], Buffer};
 
 parse(Acc, Wacc, [10|Buffer]) ->
-		{lists:reverse([lists:reverse(Wacc) | Acc]), [], Buffer};
+    {lists:reverse([lists:reverse(Wacc) | Acc]), [], Buffer};
 
 
 parse(Acc, Wacc, [13|Buffer]) -> % need to delete
-		parse(Acc, Wacc, Buffer);
+    parse(Acc, Wacc, Buffer);
 
 parse(Acc, [], [81|Buffer]) ->
-		{lists:reverse(Acc), [], Buffer};
+    {lists:reverse(Acc), [], Buffer};
 parse(Acc, Wacc, [81|Buffer]) ->
-		{lists:reverse([lists:reverse(Wacc) | Acc]), [], Buffer};
+    {lists:reverse([lists:reverse(Wacc) | Acc]), [], Buffer};
 
 parse(Acc, [], [32|Buffer]) ->
-		parse(Acc, [], Buffer);
+    parse(Acc, [], Buffer);
 
 parse(Acc, Wacc, [32|Buffer]) ->
-		parse([lists:reverse(Wacc) | Acc], [], Buffer);
+    parse([lists:reverse(Wacc) | Acc], [], Buffer);
 
 parse(Acc, Wacc, [X|Buffer]) ->
-		parse(Acc, [X | Wacc], Buffer).
+    parse(Acc, [X | Wacc], Buffer).
