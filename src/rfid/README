@@ -2,6 +2,8 @@ RFID cluster protocol.
 
 Text based protocols.
 
+For connect to system, RFID reader must connect to clerk, and get most little busy node ip. Actual ip send to RFID reader and then clerk closes socket. Then reader connect to actual ip.
+
 RFID reader register in system:
 > id ID X Y
 
@@ -9,6 +11,9 @@ Cluster to RFID reader request:
 > where MID
 Reply:
 > radius MID R
+
+Request for reconnect RFID reader to cluster. This may be need for cluster reconfiguration.
+> reconnect
 
 RFID reader message. Send at event in a world.
 > here MID

@@ -20,11 +20,11 @@
 init_bool() -> true.
 
 enviroment() ->
-    {atomic, ok} = mnesia:create_table(rfid_reader, [{attributes,record_info(fields, rfid_reader)}]),
-    {atomic, ok} = mnesia:create_table(mark_info, [{attributes,record_info(fields, mark_info)}
+		{atomic, ok} = mnesia:create_table(rfid_reader, [{attributes,record_info(fields, rfid_reader)}]),
+		{atomic, ok} = mnesia:create_table(mark_info, [{attributes,record_info(fields, mark_info)}
                                                    , {type, bag}
-                                                  ]),
-    ok.
+																									]),
+		ok.
 
 init(["id", IdS, Xs, Ys], _State) ->
     Id = list_to_integer(IdS),
