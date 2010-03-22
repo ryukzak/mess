@@ -1,11 +1,11 @@
-%%%-------------------------------------------------------------------
+%%%-----------------------------------------------------------------------------
 %%% @author Ryukzak Neskazov <>
 %%% @copyright (C) 2010, Ryukzak Neskazov
 %%% @doc
 %%%
 %%% @end
 %%% Created :  8 Mar 2010 by Ryukzak Neskazov <>
-%%%-------------------------------------------------------------------
+%%%-----------------------------------------------------------------------------
 -module(sc_app).
 
 -behaviour(application).
@@ -13,11 +13,11 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
-%%%===================================================================
+%%%=============================================================================
 %%% Application callbacks
-%%%===================================================================
+%%%=============================================================================
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% This function is called whenever an application is started using
@@ -32,18 +32,11 @@
 %%      StartType = normal | {takeover, Node} | {failover, Node}
 %%      StartArgs = term()
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 start(_StartType, _StartArgs) ->
 		application:start(mnesia),
 
-    file:make_dir("log"),
-    
-%%     application:set_env(sasl, sasl_error_logger, {file, "simple_test_log"}),
-%%     application:set_env(sasl, sasl_error_logger, false),
-%%     application:set_env(sasl, errlog_type, error),
-%%     application:set_env(sasl, error_logger_mf_dir, "log"),
-%%     application:set_env(sasl, error_logger_mf_maxbytes, 10485760),
-%%     application:set_env(sasl, error_logger_mf_maxfiles, 10),
+    file:make_dir("log"), % create directory for log
     application:start(sasl),
 
 		case node_sup:start_link() of
@@ -53,7 +46,7 @@ start(_StartType, _StartArgs) ->
 						Error
 		end.
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% This function is called whenever an application has stopped. It
@@ -62,11 +55,11 @@ start(_StartType, _StartArgs) ->
 %%
 %% @spec stop(State) -> void()
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 stop(_State) ->
 		spawn(application, stop, [mnesia]),
 		ok.
 
-%%%===================================================================
+%%%=============================================================================
 %%% Internal functions
-%%%===================================================================
+%%%=============================================================================

@@ -1,17 +1,18 @@
-%%%-------------------------------------------------------------------
+%%%-----------------------------------------------------------------------------
 %%% @author ryukzak <>
 %%% @copyright (C) 2010, ryukzak
 %%% @doc
 %%%
 %%% @end
 %%% Created :  3 Mar 2010 by ryukzak <>
-%%%-------------------------------------------------------------------
+%%%-----------------------------------------------------------------------------
 -module(chanel).
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/2
+-export([
+         start_link/2
          , parse/3
          , cast/2
         ]).
@@ -24,28 +25,28 @@
 
 -record(state, {sock, mod, init, buffer = [], chanel_state = undefined}).
 
-%%%===================================================================
+%%%=============================================================================
 %%% API
-%%%===================================================================
+%%%=============================================================================
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @doc
 %% Starts the server
 %%
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 start_link(Sock, Mod) ->
     gen_server:start_link(?MODULE, [Sock, Mod], []).
 
 cast(Pid, Msg) ->
     gen_server:cast(Pid, {cast, Msg}).
 
-%%%===================================================================
+%%%=============================================================================
 %%% gen_server callbacks
-%%%===================================================================
+%%%=============================================================================
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% Initiates the server
@@ -55,18 +56,20 @@ cast(Pid, Msg) ->
 %%                     ignore |
 %%                     {stop, Reason}
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 init([Sock, Mod]) ->
     case clerk:enviroment(Mod) of
         ok ->
             Init = Mod:init_bool(),
             {ok, #state{sock = Sock, mod = Mod, init = Init}};
         {error, Reason} ->
+            error_logger:error_msg("Chanel from module: ~p can not start.",
+                                   [Mod]),
             {stop, Reason}
     end.
 
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% Handling call messages
@@ -79,12 +82,12 @@ init([Sock, Mod]) ->
 %%                                   {stop, Reason, Reply, State} |
 %%                                   {stop, Reason, State}
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% Handling cast messages
@@ -93,7 +96,7 @@ handle_call(_Request, _From, State) ->
 %%                                  {noreply, State, Timeout} |
 %%                                  {stop, Reason, State}
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 handle_cast({cast, Msg}, #state{mod = Mod
                                 , chanel_state = CS
                                 , sock = Sock
@@ -107,7 +110,7 @@ handle_cast({cast, Msg}, #state{mod = Mod
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% Handling all non call/cast messages
@@ -116,22 +119,7 @@ handle_cast(_Msg, State) ->
 %%                                   {noreply, State, Timeout} |
 %%                                   {stop, Reason, State}
 %% @end
-%%--------------------------------------------------------------------
-
-tcp_loop(Mod, Init, Buffer, State) ->
-    case parse([], [], Buffer) of
-        none -> {Init, Buffer, State};
-        {Msg, [], Buffer0} ->
-            case Init of
-                false -> State0 = Mod:tcp_cast(Msg, State),
-                         tcp_loop(Mod, false, Buffer0, State0);
-                true -> {Init0, State0} = Mod:init(Msg, State),
-                        tcp_loop(Mod, Init0, Buffer0, State0)
-            end;
-        X -> io:format("Error in chanel parser: ~p~n", [X])
-    end.
-
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 
 handle_info({tcp, _Port, Msg} = _Info, #state{buffer = Buffer
                                               , init = Init
@@ -148,11 +136,10 @@ handle_info({tcp_closed, _Port} = _Info, State) ->
     {stop, normal, State};
 
 handle_info(Info, State) ->
-    io:format("---------------------------------~n"),
-    io:format("controller Info: ~p~n", [Info]),
+    error_logger:warning_msg("Unknown message in chanel: ~p", [Info]),
     {noreply, State}.
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% This function is called by a gen_server when it is about to
@@ -162,7 +149,7 @@ handle_info(Info, State) ->
 %%
 %% @spec terminate(Reason, State) -> void()
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 terminate(_Reason, #state{sock = Sock
                           , mod = Mod
                           , chanel_state = CS
@@ -173,20 +160,20 @@ terminate(_Reason, #state{sock = Sock
     end,
     gen_tcp:close(Sock).
 
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 %% @private
 %% @doc
 %% Convert process state when code is changed
 %%
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @end
-%%--------------------------------------------------------------------
+%%------------------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%%%===================================================================
+%%%=============================================================================
 %%% Internal functions
-%%%===================================================================
+%%%=============================================================================
 
 parse(_Acc, _Wacc, []) ->
     none;
@@ -198,7 +185,7 @@ parse(Acc, Wacc, [10|Buffer]) ->
     {lists:reverse([lists:reverse(Wacc) | Acc]), [], Buffer};
 
 
-parse(Acc, Wacc, [13|Buffer]) -> % need to delete
+parse(Acc, Wacc, [13|Buffer]) -> % FIXME need to delete
     parse(Acc, Wacc, Buffer);
 
 parse(Acc, [], [81|Buffer]) ->
@@ -214,3 +201,19 @@ parse(Acc, Wacc, [32|Buffer]) ->
 
 parse(Acc, Wacc, [X|Buffer]) ->
     parse(Acc, [X | Wacc], Buffer).
+
+%%------------------------------------------------------------------------------
+
+tcp_loop(Mod, Init, Buffer, State) ->
+    case parse([], [], Buffer) of
+        none -> {Init, Buffer, State};
+        {Msg, [], Buffer0} ->
+            case Init of
+                false -> State0 = Mod:tcp_cast(Msg, State),
+                         tcp_loop(Mod, false, Buffer0, State0);
+                true -> {Init0, State0} = Mod:init(Msg, State),
+                        tcp_loop(Mod, Init0, Buffer0, State0)
+            end;
+        X -> error_logger:error_msg("Error in chanel parser: ~p", [X])
+    end.
+
