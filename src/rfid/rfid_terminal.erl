@@ -10,6 +10,8 @@
          , timeout/2
         ]).
 
+-import(lists, [map/2, keyfind/3, keydelete/3, keyreplace/4]).
+
 -record(state,{request}).
 -record(request,{mid, count}).
 
@@ -51,9 +53,9 @@ tcp_cast(["where", MidS], #state{request=Request} = State) ->
     Mid = list_to_integer(MidS),
     List = mnesia:transaction(
              fun() -> mnesia:read({mark_info, Mid}) end),
-    lists:map(fun (X) ->
-                      X#mark_info.pid ! {where, Mid, self()}
-              end, List),
+    map(fun (X) ->
+                X#mark_info.pid ! {where, Mid, self()}
+        end, List),
     spawn(?MODULE, timeout, [self(), Mid]),
     State#state{request = [#request{mid = Mid,
                                     count = length(List)}
@@ -69,23 +71,23 @@ timeout(Pid, Mid) ->
 
 cast({radius, Mid, Rad, X, Y}, #state{request=Request} = State) ->
     Msg = "radius "
-        ++ erlang:integer_to_list(Mid) ++ " "
-        ++ erlang:integer_to_list(Rad) ++ " "
-        ++ erlang:integer_to_list(X) ++ " "
-        ++ erlang:integer_to_list(Y) ++ "\n",
-    {_, Count} = lists:keyfind(Mid, 1, Request),
+        ++ integer_to_list(Mid) ++ " "
+        ++ integer_to_list(Rad) ++ " "
+        ++ integer_to_list(X) ++ " "
+        ++ integer_to_list(Y) ++ "\n",
+    {_, Count} = keyfind(Mid, 1, Request),
     case Count of
-        1 -> {Msg ++ "end " ++ erlang:integer_to_list(Mid) ++ "\n",
-              State#state{request = lists:keydelete(Mid, 1, Request)}};
-        _ -> {Msg, State#state{ request = lists:keyreplace(Mid,
+        1 -> {Msg ++ "end " ++ integer_to_list(Mid) ++ "\n",
+              State#state{request = keydelete(Mid, 1, Request)}};
+        _ -> {Msg, State#state{ request = keyreplace(Mid,
                                                            1,
                                                            Request,
                                                            {Mid, Count - 1})}}
     end;
 
 cast({timeout, Mid}, #state{request=Request} = State) ->
-    {"end " ++ erlang:integer_to_list(Mid) ++ "\n",
-     State#state{request = lists:keydelete(Mid, 1, Request)}}.
+    {"end " ++ integer_to_list(Mid) ++ "\n",
+     State#state{request = keydelete(Mid, 1, Request)}}.
 
 %%------------------------------------------------------------------------------
 

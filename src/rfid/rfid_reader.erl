@@ -9,6 +9,9 @@
          , init_bool/0
         ]).
 
+-include_lib("stdlib/include/qlc.hrl").
+-import(lists, [map/2, keydelete/3]).
+
 -record(state,{id
                , request = []
                , x
@@ -65,12 +68,16 @@ tcp_cast(["here", MidS], #state{id=Id} = State) ->
     State;
 
 tcp_cast(["unhere", MidS], #state{id=Id} = State) ->
-    Mid = list_to_integer(MidS),		
-    mnesia:transaction(
-      fun() -> mnesia:delete(#mark_info{mid = Mid
+    Mid = list_to_integer(MidS),
+    io:format("Delete: ~p~n", [#mark_info{mid = Mid
                                         , id = Id
                                         , pid = self()
-                                       }) end),
+                                       }]),
+    mnesia:transaction(
+      fun() -> mnesia:delete_object(#mark_info{mid = Mid
+                                               , id = Id
+                                               , pid = self()
+                                              }) end),
     State;
 
 tcp_cast(["radius", MidS, RadS], #state{x=X,
@@ -81,7 +88,7 @@ tcp_cast(["radius", MidS, RadS], #state{x=X,
     Rad = list_to_integer(RadS),
     [Z#request.pid ! {radius, Mid, Rad, X, Y} || Z <- Request,
                                                  Z#request.mid == Mid],
-    State#state{request = lists:keydelete(Mid, 1, Request)}.
+    State#state{request = keydelete(Mid, 1, Request)}.
 
 %%------------------------------------------------------------------------------
 
@@ -104,5 +111,10 @@ wait_mid(WhereRequest, Mid) ->
 %%------------------------------------------------------------------------------
 
 terminate(#state{id=Id}) ->
-    mnesia:transaction(fun() -> mnesia:delete({rfid_reader, Id}) end),
+    Q = qlc:q([mnesia:delete_object(X) || X <- mnesia:table(mark_info),
+                                          X#mark_info.id == Id]),
+    mnesia:transaction(fun() ->
+                               mnesia:delete({rfid_reader, Id}),
+                               qlc:eval(Q)
+                       end),
     ok.

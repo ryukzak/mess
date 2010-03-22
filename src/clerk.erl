@@ -74,9 +74,10 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({enviroment, Mod}, _From, #state{ enviroment=Enviroment
                                              } = State) ->
-    case lists:member(Mod:enviroment_name(), Enviroment) of
-        true -> {reply, true, State};
-        false -> Reply = Env:enviroment(),
+    Env = Mod:enviroment_name(),
+    case lists:member(Env, Enviroment) of
+        true -> {reply, ok, State};
+        false -> Reply = Mod:enviroment(),
                  {reply, Reply, State#state{enviroment=[Env|Enviroment]}}
     end;
 handle_call(_Request, _From, State) ->

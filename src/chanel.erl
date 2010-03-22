@@ -124,7 +124,7 @@ tcp_loop(Mod, Init, Buffer, State) ->
         {Msg, [], Buffer0} ->
             case Init of
                 false -> State0 = Mod:tcp_cast(Msg, State),
-                         tcp_loop(Mod, true, Buffer0, State0);
+                         tcp_loop(Mod, false, Buffer0, State0);
                 true -> {Init0, State0} = Mod:init(Msg, State),
                         tcp_loop(Mod, Init0, Buffer0, State0)
             end;
