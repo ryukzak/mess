@@ -35,7 +35,14 @@
 %%--------------------------------------------------------------------
 start(_StartType, _StartArgs) ->
 		application:start(mnesia),
-		
+    
+    application:set_env(sasl, sasl_error_logger, {file, "simple_test_log"}),
+    application:set_env(sasl, errlog_type, error),
+    application:set_env(sasl, error_logger_mf_dir, "log"),
+    application:set_env(sasl, error_logger_mf_maxbytes, 10485760),
+    application:set_env(sasl, error_logger_mf_maxfiles, 10),
+    application:start(sasl),
+
 		case node_sup:start_link() of
 				{ok, Pid} ->
 						{ok, Pid};
