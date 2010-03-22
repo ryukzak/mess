@@ -15,12 +15,12 @@ sock.puts "here 3"
 sock.puts "here 4"
 sock.puts "here 5"
 sock.puts "here 6"
-sleep 10
+sleep 1
 sock.puts "unhere 5"
 sock.puts "unhere 2"
 sock.puts "unhere 3"
 
-sleep 10
+sleep 1
 
 sock.puts "some incorrect message"
 
