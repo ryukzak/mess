@@ -37,8 +37,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-enviroment(Env) ->
-    gen_server:call(?SERVER, {enviroment, Env}).
+enviroment(Mod) ->
+    gen_server:call(?SERVER, {enviroment, Mod}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -72,9 +72,9 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({enviroment, Env}, _From, #state{ enviroment=Enviroment
+handle_call({enviroment, Mod}, _From, #state{ enviroment=Enviroment
                                              } = State) ->
-    case lists:member(Env, Enviroment) of
+    case lists:member(Mod:enviroment_name(), Enviroment) of
         true -> {reply, true, State};
         false -> Reply = Env:enviroment(),
                  {reply, Reply, State#state{enviroment=[Env|Enviroment]}}

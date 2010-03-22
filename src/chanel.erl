@@ -36,7 +36,6 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Sock, Mod) ->
-%% 		io:format("Chanel start link: ~p~n", [{Sock, Mod}]),
     gen_server:start_link(?MODULE, [Sock, Mod], []).
 
 cast(Pid, Msg) ->
