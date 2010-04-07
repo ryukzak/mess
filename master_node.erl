@@ -50,7 +50,8 @@ init([]) ->
 
 handle_call({attach, Node}, _From, State) ->
 		case net_adm:ping(Node) of
-				pong -> spawn(Node, fun() -> slave_node:start_link() end),
+				pong -> MasterNode = node(),
+								spawn(Node, slave_node, start_link, [MasterNode]),
 								{reply, ok, State};
 				pang -> {reply, can_not_connect, State}
 		end;

@@ -43,11 +43,12 @@ ping() ->
 %%%============================================================================
 
 init([]) ->
+		random:seed(now()),
 		{ok, #state{}};
 
 init([MasterNode]) ->
 		monitor_node(MasterNode, true),
-		printer:format("init slave_node~n"),
+		printer:format("init slave_node~p~n", [MasterNode]),
 		{ok, #state{}}.
 
 
@@ -67,7 +68,14 @@ handle_cast(_Msg, State) ->
 
 
 
-handle_info(_Info, State) ->
+handle_info({nodedown, Node}, State) ->
+		timer:sleep(random:uniform(50)),
+		catch master_node:start_link(),
+		printer:format("Node down: ~p~n", [Node]),
+		{noreply, State};
+
+handle_info(Info, State) ->
+		printer:format("Info: ~p~n", [Info]),
 		{noreply, State}.
 
 
