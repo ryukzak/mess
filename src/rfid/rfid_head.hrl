@@ -1,0 +1,2 @@
+-record(rfid_reader,{id, pid}).
+-record(mark_info,{mid, id, pid}).

@@ -19,9 +19,7 @@
               }).
 
 -record(request,{mid, pid}).
-
--record(rfid_reader,{id, pid}).
--record(mark_info,{mid, id, pid}).
+-include("rfid_head.hrl").
 
 %%------------------------------------------------------------------------------
 

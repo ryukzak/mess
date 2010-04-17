@@ -13,12 +13,10 @@
 -import(lists, [map/2, keyfind/3, keydelete/3, keyreplace/4]).
 
 -record(state,{request}).
+
 -record(request,{mid, count}).
-
 -define(TIMEOUT,1000).
-
--record(rfid_reader,{id, pid}).
--record(mark_info,{mid, id, pid}).
+-include("rfid_head.hrl").
 
 %%------------------------------------------------------------------------------
 
