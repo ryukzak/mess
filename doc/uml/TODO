@@ -1,4 +1,3 @@
-add master_node_crash
 add slave_node_crash
 
 add rfid_uml
