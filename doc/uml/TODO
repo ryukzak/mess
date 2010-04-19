@@ -1,7 +1,5 @@
 add master_node_crash
 add slave_node_crash
-add local_task
-add atom_task
 
 add rfid_uml
 
