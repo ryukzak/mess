@@ -1,6 +1,14 @@
+fix problem with master_task_manager (in some diagrams it not use, but
+need)
+
+add layer for access for mnesia
+
+supervisor hierarchy for each node.
+
+node visor hierarchy
 
 add slave_node_crash
 
-add rfid_uml
+add sequence diagram for rfid
 
 add global_task
