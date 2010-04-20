@@ -1,14 +1,20 @@
+add(fix)) layer for access for mnesia
+
 fix problem with master_task_manager (in some diagrams it not use, but
 need)
 
-add layer for access for mnesia
+fix problem with inaccurate call.
 
-supervisor hierarchy for each node.
+add supervisor hierarchy for each node.
 
-node visor hierarchy
+add node visor hierarchy
 
-add slave_node_crash
+add cluster_date_base scheme
+
+maybe need...
 
 add sequence diagram for rfid
 
-add global_task
+add global_tas
+
+add diagrams for each module API
