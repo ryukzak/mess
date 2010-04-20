@@ -1,3 +1,10 @@
+FIX Master node must monitor all slave node.
+
+FIX When up new master_node, must check all slave_node (Maybe, some
+node crash, and some atom task not finish)
+
+Add progress bar for atom task (may need for very long task)
+
 add slave_node_crash
 
 add rfid_uml
