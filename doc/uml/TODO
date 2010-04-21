@@ -1,4 +1,5 @@
-fix problem with inaccurate call.
+Need monitor slave node supervisor from master_node.
+
 
 
 add supervisor hierarchy for each node.
