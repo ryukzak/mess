@@ -20,7 +20,7 @@
 %%%=============================================================================
 
 start(Name, Port, Mod) ->
-    error_logger:info_mes("Listener start link: ~p~n", [{Name, Port, Mod}]),
+    error_logger:info_msg("Listener start link: ~p~n", [{Name, Port, Mod}]),
     {ok, LSock} = gen_tcp:listen(Port, [list, {active, false}]),
     Pid = spawn(fun () -> register(Name,self()),
                           loop(#state{lsock = LSock, name = Name, mod = Mod})

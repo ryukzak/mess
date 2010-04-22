@@ -7,6 +7,7 @@
          , enviroment/0
          , fib/1
          , init_bool/0
+				 , enviroment_name/0
         ]).
 
 -record(state,{id}).
@@ -15,6 +16,9 @@
 -record(data,{number, from, fib}).
 
 init_bool() -> true.
+
+enviroment_name() ->
+    sdk.
 
 enviroment() ->
     {atomic, ok} = mnesia:create_table(sdk, [{attributes,record_info(fields, sdk)}]),
@@ -50,7 +54,6 @@ cast(Msg, State) ->
 
 fib(0) -> 1;
 fib(1) -> 1;
-fib(2) -> 1;
 fib(N) -> fib(N - 1) + fib(N - 2).
 
 terminate(#state{id = Id}) ->

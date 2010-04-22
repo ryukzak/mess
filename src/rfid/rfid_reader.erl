@@ -33,14 +33,14 @@ enviroment_name() ->
 %%------------------------------------------------------------------------------
 
 enviroment() ->
-		{atomic, ok} =
-        mnesia:create_table(rfid_reader,
-                            [{attributes,record_info(fields, rfid_reader)}]),
-		{atomic, ok} =
-        mnesia:create_table(mark_info,
-                            [{attributes,record_info(fields, mark_info)}
-                             , {type, bag}
-                            ]),
+		% {atomic, ok} =
+		mnesia:create_table(rfid_reader,
+												[{attributes,record_info(fields, rfid_reader)}]),
+		% {atomic, ok} =
+		mnesia:create_table(mark_info,
+												[{attributes,record_info(fields, mark_info)}
+												 , {type, bag}
+												]),
 		ok.
 
 %%------------------------------------------------------------------------------

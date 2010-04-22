@@ -20,7 +20,7 @@ sock.puts "unhere 5"
 sock.puts "unhere 2"
 sock.puts "unhere 3"
 
-sleep 1
+sleep 10
 
 sock.puts "some incorrect message"
 
