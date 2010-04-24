@@ -1,13 +1,3 @@
-Need monitor slave node supervisor from master_node.
-
-
-
-add supervisor hierarchy for each node.
-
-add node visor hierarchy
-
-add cluster_date_base scheme
-
 maybe need...
 
 add sequence diagram for rfid
