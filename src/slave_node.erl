@@ -52,7 +52,8 @@ connect(Node) ->
     connect().
 
 connect() ->
-    application:start(slave_node).
+    application:start(slave_node),
+    slave_task_manager:start_all_local_task().
 
 %%%===================================================================
 %%% gen_server callbacks

@@ -11,13 +11,21 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([
+         start_link/0
+         , add_local_task/3
+         , add_local_task/4
+         , get_local_task/0
+        ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
+
+-include_lib("stdlib/include/qlc.hrl").
+-include_lib("tables.hrl").
 
 -record(state, {}).
 
@@ -33,8 +41,20 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({global, ?SERVER}, ?MODULE, [], []).
 
+add_local_task(M, F, A) ->
+    gen_server:call({global, ?SERVER},
+                    {add_local_task, M, F, A, undefined}).
+
+add_local_task(M, F, A, Comment) ->
+    gen_server:call({global, ?SERVER},
+                    {add_local_task, M, F, A, Comment}).
+
+get_local_task() ->
+    gen_server:call({global, ?SERVER},
+                    get_local_task).
+    
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -67,6 +87,35 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(get_local_task, _From, State) ->
+    Q = qlc:q([{T#local_task.m
+                , T#local_task.f
+                , T#local_task.a
+               } || T <- mnesia:table(local_task)]),
+    {atomic, MFAs} = mnesia:transaction(fun() -> qlc:eval(Q) end),
+    Reply = {ok, MFAs},
+    {reply, Reply, State};
+
+handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
+    Q = qlc:q([N#node.address || N <- mnesia:table(node)]),
+    Fun = fun() ->  
+                  NextValue = util:next_value(local_task),
+                  mnesia:write(#local_task{id = NextValue
+                                           , m = M
+                                           , f = F
+                                           , a = A
+                                           , comment = Comment
+                                          }),
+                  qlc:eval(Q)
+          end,
+    {atomic, Nodes} = mnesia:transaction(Fun),
+    lists:foreach(fun(N) ->
+                          slave_task_manager:add_local_task(N, M, F, A)
+                  end,
+                  Nodes),
+    Reply = ok,
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.

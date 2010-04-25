@@ -11,7 +11,10 @@
 %% API
 -export([
          start_mnesia/0
+         , next_value/1
         ]).
+
+-include_lib("tables.hrl").
 
 %%%===================================================================
 %%% API
@@ -29,6 +32,16 @@ start_mnesia() ->
             {error,Reason}
     end.
 
+next_value(Name) ->
+    % May be call only in transaction.
+    [Counter] = mnesia:read(counter, Name),
+    Value = Counter#counter.value,
+    mnesia:write(#counter{name = Name
+                          , value = Value + 1}),
+    Value.
+    
+
+    
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec

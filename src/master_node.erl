@@ -24,7 +24,7 @@
 -include_lib("tables.hrl").
 -include_lib("stdlib/include/qlc.hrl").
 
--import(mnesia, [create_table/2, transaction/1]).
+-import(mnesia, [transaction/1]).
 
 -define(SERVER, ?MODULE). 
 
@@ -88,6 +88,7 @@ init([undefined]) ->
     % Start cluster
     % Create system table for cluster
     create_system_table(),
+    create_counter(local_task, 0),
     application:set_env(slave_node, master_node, node()),
     spawn(fun() -> application:start(slave_node) end),
     {ok, #state{}};
@@ -194,13 +195,27 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 create_system_table() ->
-    {atomic,ok} =
-        create_table(node, [{ram_copies, [node()]}
-                            , {attributes,record_info(fields, node)}]).
+    {atomic,ok} = 
+        mnesia:create_table(node,
+                            [{ram_copies, [node()]}
+                             , {attributes,record_info(fields, node)}]),
+    {atomic,ok} = 
+        mnesia:create_table(counter,
+                            [{ram_copies, [node()]}
+                             , {attributes,record_info(fields, counter)}]),
+    {atomic,ok} = 
+        mnesia:create_table(local_task,
+                            [{ram_copies, [node()]}
+                             , {attributes,record_info(fields, local_task)}]).
 
+create_counter(Name, Value) ->
+    transaction(fun() -> mnesia:write(#counter{name=Name
+                                               , value=Value}) end).
 
 copy_system_table(SlaveNode) when SlaveNode /= node() ->
     mnesia:change_config(extra_db_nodes, nodes()),
-    mnesia:add_table_copy(node, SlaveNode, ram_copies);
+    mnesia:add_table_copy(node, SlaveNode, ram_copies),
+    mnesia:add_table_copy(counter, SlaveNode, ram_copies),
+    mnesia:add_table_copy(local_task, SlaveNode, ram_copies);
 
 copy_system_table(_) -> ok.

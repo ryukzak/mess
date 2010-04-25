@@ -60,8 +60,8 @@ init([]) ->
               {slave_task_manager, start_link, []},
               permanent, 2000, worker, [slave_task_manager]}
            
-           % , {local_task_sup, {local_task_sup, start_link, []},
-           %    permanent, 2000, supervisor, [local_task_sup]}
+           , {local_task_sup, {local_task_sup, start_link, []},
+              permanent, 2000, supervisor, [local_task_sup]}
           ]}}.
 
 %%%===================================================================

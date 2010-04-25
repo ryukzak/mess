@@ -11,7 +11,11 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([
+         start_link/0
+         , add_local_task/4
+         , start_all_local_task/0
+        ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -34,6 +38,13 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+
+add_local_task(Node, M, F, A) ->
+    gen_server:call({?SERVER, Node},
+                    {add_local_task, M, F, A}).
+
+start_all_local_task() ->
+    gen_server:call(?SERVER, start_all_local_task).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -67,6 +78,18 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(start_all_local_task, _From, State) ->
+    {ok, MFAs} = master_task_manager:get_local_task(),
+    lists:foreach(fun(MFA) -> local_task_sup:start_child(MFA) end,
+                  MFAs),
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({add_local_task, M, F, A}, _From, State) ->
+    local_task_sup:start_child(M, F, A),
+    Reply = ok,
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
