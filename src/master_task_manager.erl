@@ -6,25 +6,16 @@
 %%% @end
 %%% Created : 25 Apr 2010 by Ryukzak Neskazov <>
 %%%-------------------------------------------------------------------
--module(master_node).
+-module(master_task_manager).
 
 -behaviour(gen_server).
 
 %% API
--export([
-         start_link/1,
-         where/0,
-         connect/0
-        ]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
-
--include_lib("tables.hrl").
--include_lib("stdlib/include/qlc.hrl").
-
--import(mnesia, [create_table/2, transaction/1]).
 
 -define(SERVER, ?MODULE). 
 
@@ -41,33 +32,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(FromNode) ->
-    gen_server:start_link({global, ?SERVER}, ?MODULE, [FromNode], []).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Get node address, where_is master_node.
-%%
-%% @spec where() -> {ok, node()} | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
-where() ->
-    gen_server:call({global, ?SERVER}, where).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Connect process to master node. It's should be a slave_node. Also
-%% master_node monitoring slave node and conversely.
-%%
-%% @spec connect() -> ok | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
-
-connect() ->
-    {ok, MasterNode} = master_node:where(),
-    monitor_node(MasterNode, true),
-    SlaveNode = node(),
-    gen_server:call({global, ?SERVER}, {connect, SlaveNode}).
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -84,20 +50,7 @@ connect() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([undefined]) ->
-    % Start cluster
-    % Create system table for cluster
-    create_system_table(),
-    application:set_env(slave_node, master_node, node()),
-    spawn(fun() -> application:start(slave_node) end),
-    {ok, #state{}};
-init([_FromNode]) ->
-    % Start new master node in cluster
-    Nodes = nodes(),
-    Q = qlc:q([mnesia:delete_object(N) || N <- mnesia:table(node),
-                                          not lists:member(N, Nodes)]),
-    {atomic, _} = transaction(fun() -> qlc:eval(Q) end),
-    mnesia:change_config(extra_db_nodes, Nodes),
+init([]) ->
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -114,19 +67,6 @@ init([_FromNode]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(where, _From, State) ->
-    Reply = {ok, node()},
-    {reply, Reply, State};
-
-handle_call({connect, SlaveNode}, _From, State) ->
-    monitor_node(SlaveNode, true),
-    transaction(fun() -> mnesia:write(#node{address=SlaveNode}) end),
-
-    copy_system_table(SlaveNode),
-
-    Reply = ok,
-    {reply, Reply, State};
-
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -141,8 +81,7 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast(Msg, State) ->
-    io:format("trace: ~p~n", [Msg]),
+handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -155,13 +94,7 @@ handle_cast(Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({nodedown, Node}, State) ->
-    io:format("Nodedown: ~p~n", [Node]),
-    transaction(fun() -> mnesia:delete({node, Node}) end),
-    {noreply, State};
-
-handle_info(Info, State) ->
-    io:format("Info: ~p~n", [Info]),
+handle_info(_Info, State) ->
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -192,15 +125,3 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-create_system_table() ->
-    {atomic,ok} =
-        create_table(node, [{ram_copies, [node()]}
-                            , {attributes,record_info(fields, node)}]).
-
-
-copy_system_table(SlaveNode) when SlaveNode /= node() ->
-    mnesia:change_config(extra_db_nodes, nodes()),
-    mnesia:add_table_copy(node, SlaveNode, ram_copies);
-
-copy_system_table(_) -> ok.
