@@ -236,7 +236,7 @@ copy_system_table(SlaveNode) when SlaveNode /= node() ->
                end
                || T <- mnesia:table(tables)]),
     {atomic, FuntionCopy} = mnesia:transaction(fun() -> qlc:eval(Q) end),
-    lists:foreach(fun(F) -> F() end, FuntionCopy);
+    [F() || FuntionCopy];
 
 copy_system_table(_) -> ok.
 

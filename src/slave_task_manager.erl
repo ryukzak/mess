@@ -80,8 +80,7 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call(start_all_local_task, _From, State) ->
     {ok, MFAs} = master_task_manager:get_local_task(),
-    lists:foreach(fun(MFA) -> local_task_sup:start_child(MFA) end,
-                  MFAs),
+    [local_task_sup:start_child(MFA) || MFA <- MFAs],
     Reply = ok,
     {reply, Reply, State};
 

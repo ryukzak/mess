@@ -199,14 +199,13 @@ q_create_necessary_table_function(NecessaryTables) ->
 
 
 create_necessary_table(TablesCreateFunction) ->
-    lists:foreach(fun(FCreate) -> FCreate() end, TablesCreateFunction).
+    [FCreate() || FCreate <- TablesCreateFunction].
 
 
 
 add_local_task_for_each_node(Nodes, M, F, A) ->
-    lists:foreach(fun(N) ->
-                          slave_task_manager:add_local_task(N, M, F, A)
-                  end, Nodes).
+    [slave_task_manager:add_local_task(N, M, F, A)
+     || N <- Nodes].
 
 
 
