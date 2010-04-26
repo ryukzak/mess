@@ -47,7 +47,6 @@ ping() ->
 -record(ping_pong_node_depend_log,{now, from, on}).
 tables() ->
     [{ping_pong_node_depend_log
-      , node_depended % fixme
       , fun() ->
                 mnesia:create_table(ping_pong_node_depend_log,
                                     [{ram_copies, [node()]}

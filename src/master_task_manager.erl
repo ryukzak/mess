@@ -103,14 +103,14 @@ handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
              end,
     Q2 = case mnesia:table_info(tables, size) of
              0 -> qlc:q([begin 
-                             mnesia:write(#tables{name=NNeed, type=TNeed}),
+                             mnesia:write(#tables{name=NNeed}),
                              FNeed
-                         end || {NNeed, TNeed, FNeed} <- Tables]);
+                         end || {NNeed, FNeed} <- Tables]);
              _ -> qlc:q([begin
-                             mnesia:write(#tables{name=NNeed, type=TNeed}),
+                             mnesia:write(#tables{name=NNeed}),
                              FNeed
                          end || #tables{name=NExist} <- mnesia:table(tables)
-                                    , {NNeed, TNeed, FNeed} <- Tables
+                                    , {NNeed, FNeed} <- Tables
                                     , NExist /= NNeed
                                    ])
          end,
