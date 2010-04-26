@@ -14,6 +14,7 @@
 -export([
          start_link/0
          , ping/0
+         , ping/1
          , tables/0
         ]).
 
@@ -42,11 +43,13 @@ start_link() ->
 ping() ->
     gen_server:call(?SERVER, {ping, node()}).
 
+ping(Node) ->
+    gen_server:call({?SERVER,Node}, {ping, node()}).
+
 
 -record(ping_pong_log,{now, from, on}).
 tables() ->
     [{ping_pong_log
-      , simple
       , fun() -> mnesia:create_table(ping_pong_log,
                                      [{ram_copies, [node()]}
                                       , {attributes,
