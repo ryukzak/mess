@@ -14,6 +14,7 @@
 -export([
          start_link/0
          , ping/0
+         , ping/1
         ]).
 
 %% gen_server callbacks
@@ -40,6 +41,10 @@ start_link() ->
 
 ping() ->
     gen_server:call(?SERVER, ping).
+
+ping(Node) ->
+    % gen_server:call(?SERVER, ping).
+    gen_server:call({?SERVER, Node}, ping).
 
 %%%===================================================================
 %%% gen_server callbacks
