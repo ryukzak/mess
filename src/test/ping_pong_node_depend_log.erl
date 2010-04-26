@@ -14,6 +14,7 @@
 -export([
          start_link/0
          , ping/0
+         , ping/1
          , tables/0
          , clean/1
         ]).
@@ -43,6 +44,9 @@ start_link() ->
 ping() ->
     gen_server:call(?SERVER, {ping, node()}).
 
+ping(Node) ->
+    gen_server:call({?SERVER,Node}, {ping, node()}).
+
 
 -record(ping_pong_node_depend_log,{now, from, on}).
 tables() ->
@@ -56,10 +60,10 @@ tables() ->
         end}].
 
 -include_lib("stdlib/include/qlc.hrl").
-clean(DownNode) ->
+clean(DownNodes) ->
     qlc:q([mnesia:delete_object(R)
            || R <- mnesia:table(ping_pong_node_depend_log),
-              N <- DownNode,
+              N <- DownNodes,
               R#ping_pong_node_depend_log.on == N
                  ]).
 
