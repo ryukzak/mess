@@ -39,7 +39,7 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 ping() ->
-    gen_server:call(?SERVER, {ping, node()}).
+    gen_server:call(?SERVER, ping).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -73,7 +73,7 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({ping, _Node}, _From, State) ->
+handle_call(ping, _From, State) ->
     Reply = pong,
     {reply, Reply, State};
 handle_call(_Request, _From, State) ->

@@ -123,7 +123,7 @@ handle_call({connect, SlaveNode}, _From, State) ->
     monitor_node(SlaveNode, true),
     transaction(fun() -> mnesia:write(#node{address=SlaveNode}) end),
 
-    copy_system_table(SlaveNode),
+    copy_system_table(SlaveNode), % fixme
 
     Reply = ok,
     {reply, Reply, State};
@@ -204,6 +204,10 @@ create_system_table() ->
                             [{ram_copies, [node()]}
                              , {attributes,record_info(fields, counter)}]),
     {atomic,ok} = 
+        mnesia:create_table(tables,
+                            [{ram_copies, [node()]}
+                             , {attributes,record_info(fields, tables)}]),
+    {atomic,ok} = 
         mnesia:create_table(local_task,
                             [{ram_copies, [node()]}
                              , {attributes,record_info(fields, local_task)}]).
@@ -216,6 +220,15 @@ copy_system_table(SlaveNode) when SlaveNode /= node() ->
     mnesia:change_config(extra_db_nodes, nodes()),
     mnesia:add_table_copy(node, SlaveNode, ram_copies),
     mnesia:add_table_copy(counter, SlaveNode, ram_copies),
-    mnesia:add_table_copy(local_task, SlaveNode, ram_copies);
+    mnesia:add_table_copy(tables, SlaveNode, ram_copies),
+    mnesia:add_table_copy(local_task, SlaveNode, ram_copies),
+    Q = qlc:q([fun() -> mnesia:add_table_copy(T#tables.name
+                                              , SlaveNode
+                                              , ram_copies
+                                             )
+               end
+               || T <- mnesia:table(tables)]),
+    {atomic, FuntionCopy} = mnesia:transaction(fun() -> qlc:eval(Q) end),
+    lists:foreach(fun(F) -> F() end, FuntionCopy);
 
 copy_system_table(_) -> ok.

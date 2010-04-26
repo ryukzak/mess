@@ -97,22 +97,37 @@ handle_call(get_local_task, _From, State) ->
     {reply, Reply, State};
 
 handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
-    Q = qlc:q([N#node.address || N <- mnesia:table(node)]),
-    Fun = fun() ->  
-                  NextValue = util:next_value(local_task),
-                  mnesia:write(#local_task{id = NextValue
-                                           , m = M
-                                           , f = F
-                                           , a = A
-                                           , comment = Comment
-                                          }),
-                  qlc:eval(Q)
+    Q1 = qlc:q([N#node.address || N <- mnesia:table(node)]),
+    Tables = try M:tables()
+             catch error:_Reason -> []
+             end,
+    Q2 = case mnesia:table_info(tables, size) of
+             0 -> qlc:q([begin 
+                             mnesia:write(#tables{name=NNeed, type=TNeed}),
+                             FNeed
+                         end || {NNeed, TNeed, FNeed} <- Tables]);
+             _ -> qlc:q([begin
+                             mnesia:write(#tables{name=NNeed, type=TNeed}),
+                             FNeed
+                         end || #tables{name=NExist} <- mnesia:table(tables)
+                                    , {NNeed, TNeed, FNeed} <- Tables
+                                    , NExist /= NNeed
+                                   ])
+         end,
+    Fun = fun() -> NextValue = util:next_value(local_task),
+                   mnesia:write(#local_task{id = NextValue
+                                            , m = M
+                                            , f = F
+                                            , a = A
+                                            , comment = Comment
+                                           }),
+                   {qlc:eval(Q1), qlc:eval(Q2)}
           end,
-    {atomic, Nodes} = mnesia:transaction(Fun),
+    {atomic, {Nodes, TablesCreateFunction}} = mnesia:transaction(Fun),
     lists:foreach(fun(N) ->
                           slave_task_manager:add_local_task(N, M, F, A)
-                  end,
-                  Nodes),
+                  end, Nodes),
+    lists:foreach(fun(FCreate) -> FCreate() end, TablesCreateFunction),
     Reply = ok,
     {reply, Reply, State};
 
