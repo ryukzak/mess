@@ -115,6 +115,7 @@ handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
                                    ])
          end,
     Fun = fun() -> NextValue = util:next_value(local_task),
+                   mnesia:write(#used_module{name = M}),
                    mnesia:write(#local_task{id = NextValue
                                             , m = M
                                             , f = F

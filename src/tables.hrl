@@ -2,6 +2,7 @@
 -record(local_task, {id, m, f, a, comment}).
 -record(counter, {name, value}).
 -record(tables,{name, type = simple}). % type :: simple | node_depended
+-record(used_module,{name, nil}).
 
 
 

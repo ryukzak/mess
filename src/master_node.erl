@@ -95,9 +95,24 @@ init([undefined]) ->
 init([_FromNode]) ->
     % Start new master node in cluster
     Nodes = nodes(),
-    Q = qlc:q([mnesia:delete_object(N) || N <- mnesia:table(node),
-                                          not lists:member(N, Nodes)]),
-    {atomic, _} = transaction(fun() -> qlc:eval(Q) end),
+    % remove all disconnected node from db and get list with them
+    io:format("trace: 1~n"),
+    Q1 = qlc:q([begin
+                    mnesia:delete_object(N), N
+                end || N <- mnesia:table(node),
+                       not lists:member(N, Nodes)]),
+    io:format("trace: 2~n"),
+    Q2 = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
+    io:format("trace: 3~n"),
+    {atomic, _} = transaction(fun() ->
+                                      io:format("trace: 4~n"),
+                                      DownNode = qlc:eval(Q1),
+                                      io:format("trace: 5~n"),
+                                      UsedModule = qlc:eval(Q2),
+                                      [catch qlc:eval(M:clean(DownNode))
+                                       || M <- UsedModule]
+                              end),
+    io:format("trace: 6~n"),
     mnesia:change_config(extra_db_nodes, Nodes),
     {ok, #state{}}.
 
@@ -159,6 +174,7 @@ handle_cast(Msg, State) ->
 handle_info({nodedown, Node}, State) ->
     io:format("Nodedown: ~p~n", [Node]),
     transaction(fun() -> mnesia:delete({node, Node}) end),
+    % fixme add node_depended clean
     {noreply, State};
 
 handle_info(Info, State) ->
@@ -208,6 +224,10 @@ create_system_table() ->
                             [{ram_copies, [node()]}
                              , {attributes,record_info(fields, tables)}]),
     {atomic,ok} = 
+        mnesia:create_table(used_module,
+                            [{ram_copies, [node()]}
+                             , {attributes,record_info(fields,used_module)}]),
+    {atomic,ok} = 
         mnesia:create_table(local_task,
                             [{ram_copies, [node()]}
                              , {attributes,record_info(fields, local_task)}]).
@@ -222,6 +242,7 @@ copy_system_table(SlaveNode) when SlaveNode /= node() ->
     mnesia:add_table_copy(counter, SlaveNode, ram_copies),
     mnesia:add_table_copy(tables, SlaveNode, ram_copies),
     mnesia:add_table_copy(local_task, SlaveNode, ram_copies),
+    mnesia:add_table_copy(used_module, SlaveNode, ram_copies),
     Q = qlc:q([fun() -> mnesia:add_table_copy(T#tables.name
                                               , SlaveNode
                                               , ram_copies
