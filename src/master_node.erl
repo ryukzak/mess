@@ -168,8 +168,13 @@ handle_cast(Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({nodedown, Node}, State) ->
     io:format("Nodedown: ~p~n", [Node]),
-    transaction(fun() -> mnesia:delete({node, Node}) end),
-    % fixme add node_depended clean
+    Q = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
+    transaction(fun() ->
+                        mnesia:delete({node, Node}),
+                        UsedModule = qlc:eval(Q),
+                        [catch qlc:eval(M:clean([Node]))
+                         || M <- UsedModule]
+                end),
     {noreply, State};
 
 handle_info(Info, State) ->
