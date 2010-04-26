@@ -83,7 +83,7 @@ init([]) ->
 %%                                   {reply, Reply, State, Timeout} |
 %%                                   {noreply, State} |
 %%                                   {noreply, State, Timeout} |
-%%                                   {stop, Reason, Reply, State} |
+%%                                   {stop , Reason, Reply, State} |
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
@@ -97,38 +97,14 @@ handle_call(get_local_task, _From, State) ->
     {reply, Reply, State};
 
 handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
-    Q1 = qlc:q([N#node.address || N <- mnesia:table(node)]),
-    Tables = try M:tables()
-             catch error:_Reason -> []
-             end,
-    Q2 = case mnesia:table_info(tables, size) of
-             0 -> qlc:q([begin 
-                             mnesia:write(#tables{name=NNeed}),
-                             FNeed
-                         end || {NNeed, FNeed} <- Tables]);
-             _ -> qlc:q([begin
-                             mnesia:write(#tables{name=NNeed}),
-                             FNeed
-                         end || #tables{name=NExist} <- mnesia:table(tables)
-                                    , {NNeed, FNeed} <- Tables
-                                    , NExist /= NNeed
-                                   ])
-         end,
-    Fun = fun() -> NextValue = util:next_value(local_task),
-                   mnesia:write(#used_module{name = M}),
-                   mnesia:write(#local_task{id = NextValue
-                                            , m = M
-                                            , f = F
-                                            , a = A
-                                            , comment = Comment
-                                           }),
-                   {qlc:eval(Q1), qlc:eval(Q2)}
-          end,
-    {atomic, {Nodes, TablesCreateFunction}} = mnesia:transaction(Fun),
-    lists:foreach(fun(N) ->
-                          slave_task_manager:add_local_task(N, M, F, A)
-                  end, Nodes),
-    lists:foreach(fun(FCreate) -> FCreate() end, TablesCreateFunction),
+    NecessaryTables = necessary_task_table(M),
+
+    {Nodes, TablesCreateFunction} =
+        mnesia_add_local_task(NecessaryTables, M, F, A, Comment),
+
+    create_necessary_table(TablesCreateFunction),
+    add_local_task_for_each_node(Nodes, M, F, A),
+    
     Reply = ok,
     {reply, Reply, State};
 
@@ -190,3 +166,62 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+
+
+necessary_task_table(M) ->
+    try M:tables()
+    catch error:_Reason -> []
+    end.
+
+
+
+q_nodes() ->
+    qlc:q([N#node.address || N <- mnesia:table(node)]).
+
+
+
+q_create_necessary_table_function(NecessaryTables) ->
+    case mnesia:table_info(tables, size) of
+        0 -> qlc:q([begin 
+                        mnesia:write(#tables{name=NNeed}),
+                        FNeed
+                    end || {NNeed, FNeed} <- NecessaryTables]);
+        _ -> qlc:q([begin
+                        mnesia:write(#tables{name=NNeed}),
+                        FNeed
+                    end || #tables{name=NExist} <- mnesia:table(tables)
+                               , {NNeed, FNeed} <- NecessaryTables
+                               , NExist /= NNeed
+                              ])
+    end.
+
+
+
+create_necessary_table(TablesCreateFunction) ->
+    lists:foreach(fun(FCreate) -> FCreate() end, TablesCreateFunction).
+
+
+
+add_local_task_for_each_node(Nodes, M, F, A) ->
+    lists:foreach(fun(N) ->
+                          slave_task_manager:add_local_task(N, M, F, A)
+                  end, Nodes).
+
+
+
+mnesia_add_local_task(NecessaryTables, M, F, A, Comment) ->
+    Q1 = q_nodes(),
+    Q2 = q_create_necessary_table_function(NecessaryTables),
+    Fun = fun() -> NextValue = util:next_value(local_task),
+                   mnesia:write(#used_module{name = M}),
+                   mnesia:write(#local_task{id = NextValue
+                                            , m = M
+                                            , f = F
+                                            , a = A
+                                            , comment = Comment
+                                           }),
+                   {qlc:eval(Q1), qlc:eval(Q2)}
+          end,
+    {atomic, {Nodes, TablesCreateFunction}} = mnesia:transaction(Fun),
+    {Nodes, TablesCreateFunction}.

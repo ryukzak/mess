@@ -92,23 +92,11 @@ init([undefined]) ->
     application:set_env(slave_node, master_node, node()),
     spawn(fun() -> application:start(slave_node) end),
     {ok, #state{}};
+
 init([_FromNode]) ->
     % Start new master node in cluster
-    Nodes = [node()|nodes()],
-    % remove all disconnected node from db and get list with them
-    Q1 = qlc:q([begin
-                    mnesia:delete_object(N),
-                    N#node.address
-                end || N <- mnesia:table(node),
-                       not lists:member(N#node.address, Nodes)]),
-    Q2 = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
-    {atomic, _} = transaction(fun() ->
-                                      DownNode = qlc:eval(Q1),
-                                      UsedModule = qlc:eval(Q2),
-                                      [catch qlc:eval(M:clean(DownNode))
-                                       || M <- UsedModule]
-                              end),
-    mnesia:change_config(extra_db_nodes, Nodes),
+    remove_down_node_and_clean_db(),
+    mnesia:change_config(extra_db_nodes, nodes()),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -166,19 +154,13 @@ handle_cast(Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({nodedown, Node}, State) ->
-    io:format("Nodedown: ~p~n", [Node]),
-    Q = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
-    transaction(fun() ->
-                        mnesia:delete({node, Node}),
-                        UsedModule = qlc:eval(Q),
-                        [catch qlc:eval(M:clean([Node]))
-                         || M <- UsedModule]
-                end),
+handle_info({nodedown, DownNode}, State) ->
+    io:format("Nodedown: ~p~n", [DownNode]),
+    clean_db(DownNode),
     {noreply, State};
 
 handle_info(Info, State) ->
-    io:format("Info: ~p~n", [Info]),
+    io:format("***Error Info: ~p~n", [Info]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -232,9 +214,13 @@ create_system_table() ->
                             [{ram_copies, [node()]}
                              , {attributes,record_info(fields, local_task)}]).
 
+
+
 create_counter(Name, Value) ->
     transaction(fun() -> mnesia:write(#counter{name=Name
                                                , value=Value}) end).
+
+
 
 copy_system_table(SlaveNode) when SlaveNode /= node() ->
     mnesia:change_config(extra_db_nodes, nodes()),
@@ -253,3 +239,33 @@ copy_system_table(SlaveNode) when SlaveNode /= node() ->
     lists:foreach(fun(F) -> F() end, FuntionCopy);
 
 copy_system_table(_) -> ok.
+
+
+
+remove_down_node_and_clean_db() ->
+    Nodes = [node()|nodes()],
+    Q1 = qlc:q([begin
+                    mnesia:delete_object(N),
+                    N#node.address
+                end || N <- mnesia:table(node),
+                       not lists:member(N#node.address, Nodes)]),
+    Q2 = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
+    {atomic, _} = transaction(fun() ->
+                                      DownNode = qlc:eval(Q1),
+                                      UsedModule = qlc:eval(Q2),
+                                      [catch qlc:eval(M:clean(DownNode))
+                                       || M <- UsedModule]
+                              end).
+
+
+
+clean_db(DownNode) ->
+    Q = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
+    transaction(fun() ->
+                        mnesia:delete({node, DownNode}),
+                        UsedModule = qlc:eval(Q),
+                        [catch qlc:eval(M:clean([DownNode]))
+                         || M <- UsedModule]
+                end).
+
+
