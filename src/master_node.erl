@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @author Ryukzak Neskazov <>
+%%% author Ryukzak Neskazov <>
 %%% @copyright (C) 2010, Ryukzak Neskazov
 %%% @doc
 %%%
@@ -12,9 +12,15 @@
 
 %% API
 -export([
-         start_link/1,
-         where/0,
-         connect/0
+         start_link/1
+         , connect/0
+         , i_get_table/1
+         , i_where/0
+         , i_tables/0
+         , i_nodes/0
+         , i_local_task/0
+         , i_counter/0
+         , i_used_module/0
         ]).
 
 %% gen_server callbacks
@@ -51,7 +57,7 @@ start_link(FromNode) ->
 %% @spec where() -> {ok, node()} | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-where() ->
+i_where() ->
     gen_server:call({global, ?SERVER}, where).
 
 %%--------------------------------------------------------------------
@@ -64,10 +70,18 @@ where() ->
 %%--------------------------------------------------------------------
 
 connect() ->
-    {ok, MasterNode} = master_node:where(),
+    {ok, MasterNode} = master_node:i_where(),
     monitor_node(MasterNode, true),
     SlaveNode = node(),
     gen_server:call({global, ?SERVER}, {connect, SlaveNode}).
+
+i_get_table(Table) -> gen_server:call({global, ?SERVER}, {get_table, Table}).
+
+i_tables() ->      gen_server:call({global, ?SERVER}, tables).
+i_nodes() ->       gen_server:call({global, ?SERVER}, nodes).
+i_local_task() ->  gen_server:call({global, ?SERVER}, local_task).
+i_counter() ->     gen_server:call({global, ?SERVER}, counter).
+i_used_module() -> gen_server:call({global, ?SERVER}, used_module).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -120,15 +134,45 @@ handle_call(where, _From, State) ->
 handle_call({connect, SlaveNode}, _From, State) ->
     monitor_node(SlaveNode, true),
     transaction(fun() -> mnesia:write(#node{address=SlaveNode}) end),
-
+    io:format("~p~n",[SlaveNode]),
+    
     copy_system_table(SlaveNode), % fixme
 
     Reply = ok,
     {reply, Reply, State};
 
+handle_call(tables, _From, State) ->
+    {reply, {ok, table_to_list(tables)}, State};    
+
+handle_call(nodes, _From, State) ->
+    {reply, {ok, table_to_list(node)}, State};
+
+handle_call(local_task, _From, State) ->
+    {reply, {ok, table_to_list(local_task)}, State};
+
+handle_call(counter, _From, State) ->
+    {reply, {ok, table_to_list(counter)}, State};
+
+handle_call(used_module, _From, State) ->
+    {reply, {ok, table_to_list(used_module)}, State};
+
+handle_call({get_table, Table}, _From, State) ->
+    {reply, {ok, table_to_list(Table)}, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
+
+
+
+
+table_to_list(Table) ->
+    {atomic, List} =
+        transaction(
+          fun() ->
+                  qlc:eval(qlc:q([T || T <- mnesia:table(Table)]))
+          end),
+    List.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -235,10 +279,12 @@ copy_system_table(SlaveNode) when SlaveNode /= node() ->
                                              )
                end
                || T <- mnesia:table(tables)]),
-    {atomic, FuntionCopy} = mnesia:transaction(fun() -> qlc:eval(Q) end),
+    {atomic, FuntionCopy} = transaction(fun() -> qlc:eval(Q) end),
     [F() || F <- FuntionCopy];
 
 copy_system_table(_) -> ok.
+
+
 
 remove_down_node_and_clean_db() ->
     Nodes = [node()|nodes()],
@@ -265,5 +311,3 @@ clean_db(DownNode) ->
                         [catch qlc:eval(M:clean([DownNode]))
                          || M <- UsedModule]
                 end).
-
-

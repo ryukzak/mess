@@ -26,10 +26,10 @@
                     node_up/1
                     , node_down/1
                     , node_restart/1
+                    , upload/1
                    ]).
 
-
-
+-import(ct_rpc, [call/4, cast/4]).
 
 %% Test server callback functions
 %%--------------------------------------------------------------------
@@ -51,12 +51,18 @@ init_per_suite(Config) ->
                                        , {test_util, node_up, [?N3]}
                                        , {test_util, node_up, [?N4]}
                                       ]),
-    ct:comment(os:cmd("pwd")),
-    test_util:upload(?N1),
-    test_util:upload(?N2),
-    test_util:upload(?N3),
-    test_util:upload(?N4),
-    [{timeout, 1000} | Config].
+    upload(?N1),
+    upload(?N2),
+    upload(?N3),
+    upload(?N4),
+    call(?N1, application, start, [master_node]),
+    connect(?N2,?N1),
+    connect(?N3,?N1),
+    connect(?N4,?N1),
+    [{timeout, 100} | Config].
+
+connect(Node, MasterNode) ->
+    call(Node, slave_node, connect, [MasterNode]).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -107,6 +113,10 @@ init_per_testcase(_TestCase, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_testcase(_TestCase, _Config) ->
+    rpc:call(?N1,
+             master_task_manager,
+             reset_task,
+             []),
     ok.
 
 %%--------------------------------------------------------------------
@@ -121,12 +131,44 @@ end_per_testcase(_TestCase, _Config) ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [test_case].
+    [ping_pong].
 
 %% Test cases starts here.
 %%--------------------------------------------------------------------
-test_case() ->
-    [{doc, "Describe the main purpose of this test case"}].
+ping_pong() ->
+    [{doc, "Simple ping_pong test"}].
 
-test_case(Config) when is_list(Config) ->
+ping_pong(Config) when is_list(Config) ->
+    % ?SLEEP,
+
+    master_task_manager:add_local_task(
+      ping_pong, start_link, [],"some text"),
+
+    node_down(?N3),
+    ?SLEEP,
+    {ok, [_,_,_]} = master_node:i_nodes(),
+    
+    pong = ping_pong:ping(?N1),
+    {badrpc,_} = call(?N1, ping_pong, ping, [?N3]),
+    pong = call(?N1, ping_pong, ping, [?N4]),
+    pong = call(?N1, ping_pong, ping, []),
+
+    node_up(?N3),
+    upload(?N3),
+    connect(?N3, ?N1),
+
+    {ok, [_,_,_,_]} = master_node:i_nodes(),
+    pong = call(?N3, ping_pong, ping, []),
+    
     ok.
+
+
+
+
+info() -> {where,       master_node:i_where(),
+           tables,      master_node:i_tables(),
+           nodes,       master_node:i_nodes(),
+           local_task,  master_node:i_local_task(),
+           counter,     master_node:i_counter(),
+           used_module, master_node:i_used_module()
+          }.
