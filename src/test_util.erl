@@ -11,13 +11,41 @@
 %% API
 -export([
          upload/1
+         , node_up/2
+         , node_down/2
         ]).
 
--define(EBIN,"ebin/").
+-define(EBIN,"./ebin/").
+-define(SSH,"/usr/bin/ssh").
+-define(NODE_UP_TIMEOUT,1000).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+node_up(URL, Node) ->
+    open_port({spawn_executable, ?SSH},
+              [stream, {args, [URL, "-f",
+                               "erl -detached -noinput -name "
+                               ++ full_address(URL, Node)
+                               ++ " -setcookie \""
+                               ++ atom_to_list(erlang:get_cookie())
+                               ++ "\""]}]),
+    timer:sleep(?NODE_UP_TIMEOUT),
+    case net_adm:ping(list_to_atom(full_address(URL, Node))) of
+        pong -> ok;
+        pang -> error
+    end.
+
+node_down(URL, Node) ->
+    rpc:call(list_to_atom(full_address(URL, Node)),erlang,halt,[]),
+    case net_adm:ping(list_to_atom(full_address(URL, Node))) of
+        pong -> error;
+        pang -> ok
+    end.
+
+full_address(URL, Node) -> atom_to_list(Node) ++ "@" ++ URL.
+    
+
 upload(Node) ->
     {ok,FileList} = file:list_dir(?EBIN),
 
