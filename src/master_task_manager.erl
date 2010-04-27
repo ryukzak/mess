@@ -16,6 +16,7 @@
          , add_local_task/3
          , add_local_task/4
          , get_local_task/0
+         , reset_task/0
         ]).
 
 %% gen_server callbacks
@@ -51,9 +52,9 @@ add_local_task(M, F, A, Comment) ->
     gen_server:call({global, ?SERVER},
                     {add_local_task, M, F, A, Comment}).
 
-get_local_task() ->
-    gen_server:call({global, ?SERVER},
-                    get_local_task).
+reset_task() -> gen_server:call({global, ?SERVER}, reset_task).
+
+get_local_task() -> gen_server:call({global, ?SERVER}, get_local_task).
     
 %%%===================================================================
 %%% gen_server callbacks
@@ -94,6 +95,22 @@ handle_call(get_local_task, _From, State) ->
                } || T <- mnesia:table(local_task)]),
     {atomic, MFAs} = mnesia:transaction(fun() -> qlc:eval(Q) end),
     Reply = {ok, MFAs},
+    {reply, Reply, State};
+
+handle_call(reset_task, _From, State) ->
+    Q1 = qlc:q([N || #node{address = N} <- mnesia:table(node)]),
+    Q2 = qlc:q([N || #tables{name = N} <- mnesia:table(tables)]),
+    Fun = fun() -> {qlc:eval(Q1),qlc:eval(Q2)} end,
+    {atomic,{Nodes,Tables}} = mnesia:transaction(Fun),
+    % clear system table
+    mnesia:clear_table(tables),
+    mnesia:clear_table(used_module),
+    mnesia:clear_table(local_task),
+    % delete user table
+    [{atomic,ok} = mnesia:delete_table(T) || T <- Tables],
+    % stop all atom and local task on each node
+    [slave_task_manager:reset_task(N) || N <- Nodes],
+    Reply = ok,
     {reply, Reply, State};
 
 handle_call({add_local_task, M, F, A, Comment}, _From, State) ->

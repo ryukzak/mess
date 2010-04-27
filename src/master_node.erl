@@ -240,8 +240,6 @@ copy_system_table(SlaveNode) when SlaveNode /= node() ->
 
 copy_system_table(_) -> ok.
 
-
-
 remove_down_node_and_clean_db() ->
     Nodes = [node()|nodes()],
     Q1 = qlc:q([begin

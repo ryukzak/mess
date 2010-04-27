@@ -15,6 +15,7 @@
          start_link/0
          , add_local_task/4
          , start_all_local_task/0
+         , reset_task/1
         ]).
 
 %% gen_server callbacks
@@ -45,6 +46,8 @@ add_local_task(Node, M, F, A) ->
 
 start_all_local_task() ->
     gen_server:call(?SERVER, start_all_local_task).
+
+reset_task(Node) -> gen_server:call({?SERVER, Node}, reset_task).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -78,6 +81,11 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(reset_task, _From, State) ->
+    local_task_sup:terminate_all_child(),
+    Reply = ok,
+    {reply, Reply, State};
+
 handle_call(start_all_local_task, _From, State) ->
     {ok, MFAs} = master_task_manager:get_local_task(),
     [local_task_sup:start_child(MFA) || MFA <- MFAs],

@@ -15,6 +15,7 @@
          start_link/0
          , start_child/3
          , start_child/1
+         , terminate_all_child/0
         ]).
 
 %% Supervisor callbacks
@@ -43,7 +44,14 @@ start_child(MFA) ->
 
 start_child(M, F, A) ->
     start_child({M, F, A}).
-    
+
+terminate_all_child() ->
+    ChildList = supervisor:which_children(?SERVER),
+    [begin
+         supervisor:terminate_child(?SERVER, Id),
+         supervisor:delete_child(?SERVER, Id)
+     end || {Id,_,_,_} <- ChildList].
+
 %%%===================================================================
 %%% Supervisor callbacks
 %%%===================================================================
