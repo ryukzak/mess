@@ -14,11 +14,14 @@
          , node_up/1
          , node_down/1
          , node_restart/1
+         , send_app/2
+         , send_module/2
         ]).
 
--define(EBIN,"./ebin/").
+-define(EBIN,"/home/ryukzak/Documents/mess/ebin/").
 -define(SSH,"/usr/bin/ssh").
--define(NODE_UP_TIMEOUT,1000).
+-define(NODE_UP_TIMEOUT,50).
+-define(PING_LOOP_REPEAT,40).
 
 %%%===================================================================
 %%% API
@@ -32,21 +35,34 @@ node_up(Node) ->
                                ++ "\" -setcookie \""
                                ++ atom_to_list(erlang:get_cookie())
                                ++ "\""]}]),
-    timer:sleep(?NODE_UP_TIMEOUT),
-    case net_adm:ping(Node) of
-        pong -> ok;
-        pang -> error
-    end.
+    ping_loop(Node, pong).
 
 node_down(Node) ->
     rpc:call(Node,erlang,halt,[]),
+    timer:sleep(?NODE_UP_TIMEOUT),
+    ping_loop(Node, pang).
+
+
+ping_loop(Node, Need) -> ping_loop(Node, Need, ?PING_LOOP_REPEAT).
+
+ping_loop(_Node, _Need, 0) ->
+    error;
+
+ping_loop(Node, Need, N) ->
+    timer:sleep(?NODE_UP_TIMEOUT),
     case net_adm:ping(Node) of
-        pong -> error;
-        pang -> ok
+        Need -> ok;
+        _ -> ping_loop(Node, Need, N - 1)
     end.
+
+
+
+
+
 
 node_restart(Node) ->
     ok = node_down(Node),
+    ok = upload(Node),
     ok = node_up(Node).
     
     
