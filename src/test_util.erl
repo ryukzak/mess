@@ -11,8 +11,9 @@
 %% API
 -export([
          upload/1
-         , node_up/2
-         , node_down/2
+         , node_up/1
+         , node_down/1
+         , node_restart/1
         ]).
 
 -define(EBIN,"./ebin/").
@@ -22,28 +23,32 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-node_up(URL, Node) ->
+node_up(Node) ->
+    URL = re:replace(atom_to_list(Node),"^[^@]*@","",[{return,list}]),
     open_port({spawn_executable, ?SSH},
               [stream, {args, [URL, "-f",
-                               "erl -detached -noinput -name "
-                               ++ full_address(URL, Node)
-                               ++ " -setcookie \""
+                               "erl -detached -noinput -name \""
+                               ++ atom_to_list(Node)
+                               ++ "\" -setcookie \""
                                ++ atom_to_list(erlang:get_cookie())
                                ++ "\""]}]),
     timer:sleep(?NODE_UP_TIMEOUT),
-    case net_adm:ping(list_to_atom(full_address(URL, Node))) of
+    case net_adm:ping(Node) of
         pong -> ok;
         pang -> error
     end.
 
-node_down(URL, Node) ->
-    rpc:call(list_to_atom(full_address(URL, Node)),erlang,halt,[]),
-    case net_adm:ping(list_to_atom(full_address(URL, Node))) of
+node_down(Node) ->
+    rpc:call(Node,erlang,halt,[]),
+    case net_adm:ping(Node) of
         pong -> error;
         pang -> ok
     end.
 
-full_address(URL, Node) -> atom_to_list(Node) ++ "@" ++ URL.
+node_restart(Node) ->
+    ok = node_down(Node),
+    ok = node_up(Node).
+    
     
 
 upload(Node) ->
