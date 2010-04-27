@@ -1,3 +1,9 @@
-Add mnesia support to cluster. And then add task manager.
+Cluster test suite (fix some problem with this).
 
-Add proggress table for task.
+Fix problem with needed time-out. (when it not really need)
+
+pool
+
+atom_task
+
+atom_task_restart when crash.
