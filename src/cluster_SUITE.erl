@@ -22,10 +22,15 @@
 -define(PING_LOOP_REPEAT,40).
 -define(SLEEP,timer:sleep(100)).
 
--define(N1,'node1@192.168.1.19').
--define(N2,'node2@192.168.1.19').
--define(N3,'node3@192.168.1.19').
--define(N4,'node4@192.168.1.19').
+% -define(N1,'node1@192.168.1.19').
+% -define(N2,'node2@192.168.1.19').
+% -define(N3,'node3@192.168.1.19').
+% -define(N4,'node4@192.168.1.19').
+
+-define(N1,'node1@127.0.0.1').
+-define(N2,'node2@127.0.0.1').
+-define(N3,'node3@127.0.0.1').
+-define(N4,'node4@127.0.0.1').
 
 -import(ct_rpc, [call/4, cast/4]).
 
@@ -43,24 +48,41 @@
 %% @spec init_per_suite(Config) -> Config
 %% @end
 %%--------------------------------------------------------------------
+
 init_per_suite(Config) ->
-    [ok,ok,ok,ok] = rpc:parallel_eval([{test_util, node_up, [?N1]}
-                                       , {test_util, node_up, [?N2]}
-                                       , {test_util, node_up, [?N3]}
-                                       , {test_util, node_up, [?N4]}
-                                      ]),
-    upload(?N1),
-    upload(?N2),
-    upload(?N3),
-    upload(?N4),
-    call(?N1, application, start, [master_node]),
-    connect(?N2,?N1),
-    connect(?N3,?N1),
-    connect(?N4,?N1),
+    tc(fun() -> [ok,ok,ok,ok] =
+                    rpc:parallel_eval([{cluster_SUITE, node_up, [?N1]}
+                                       , {cluster_SUITE, node_up, [?N2]}
+                                       , {cluster_SUITE, node_up, [?N3]}
+                                       , {cluster_SUITE, node_up, [?N4]}
+                                      ])
+       end, "Node up"),
+    
+    tc(fun() -> upload(?N1),
+                upload(?N2),
+                upload(?N3),
+                upload(?N4)
+       end,"Node upload system"),
+    
+    tc(fun() -> call(?N1, application, start, [master_node]),
+                connect(?N2,?N1),
+                connect(?N3,?N1),
+                connect(?N4,?N1)
+       end,"Node start cluster"),
     Config.
 
-connect(Node, MasterNode) ->
-    call(Node, slave_node, connect, [MasterNode]).
+
+tc(Fun, Str) when is_function(Fun) ->
+    tc(Str, Fun);
+
+tc(Str, Fun) ->
+    Time = now(),
+    Fun(),
+    io:format("~s: ~p sec~n",[Str,
+                              timer:now_diff(now(),Time) / 1000000
+                             ]).
+    
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -73,10 +95,11 @@ connect(Node, MasterNode) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
-    ok = node_down(?N1),
-    ok = node_down(?N2),
-    ok = node_down(?N3),
-    ok = node_down(?N4),
+    tc(fun() -> ok = node_down(?N1),
+                ok = node_down(?N2),
+                ok = node_down(?N3),
+                ok = node_down(?N4)
+       end, "All node down"),
     ok.
 
 %%--------------------------------------------------------------------
@@ -111,10 +134,10 @@ init_per_testcase(_TestCase, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_testcase(_TestCase, _Config) ->
-    rpc:call(?N1,
-             master_task_manager,
-             reset_task,
-             []),
+    tc(fun() -> rpc:call(?N1, master_task_manager,
+                         reset_task,
+                         [])
+       end, "Reset task"),
     ok.
 
 %%--------------------------------------------------------------------
@@ -128,36 +151,82 @@ end_per_testcase(_TestCase, _Config) ->
 %% @spec all() -> TestCases
 %% @end
 %%--------------------------------------------------------------------
-all() ->
-    [ping_pong].
+all() -> [
+          ping_pong
+          , ping_pong_log
+         ].
 
+%%--------------------------------------------------------------------
 %% Test cases starts here.
 %%--------------------------------------------------------------------
 ping_pong() ->
     [{doc, "Simple ping_pong test"}].
 
 ping_pong(Config) when is_list(Config) ->
-    % ?SLEEP,
+    tc(fun() -> master_task_manager:add_local_task(
+                  ping_pong, start_link, [],"some text")
+       end, "Add new task"),
 
-    master_task_manager:add_local_task(
-      ping_pong, start_link, [],"some text"),
+    tc(fun() -> pong = ping_pong:ping(?N3)
+       end, "Ping pong"),
 
-    node_down(?N3),
-    ?SLEEP,
-    {ok, [_,_,_]} = master_node:i_nodes(),
+    tc(fun() -> ok = node_down(?N3)
+       end, "Node down"),
     
-    pong = ping_pong:ping(?N1),
-    {badrpc,_} = call(?N1, ping_pong, ping, [?N3]),
-    pong = call(?N1, ping_pong, ping, [?N4]),
-    pong = call(?N1, ping_pong, ping, []),
+    {ok, [_,_,_]} = master_node:i_nodes(),
 
-    node_up(?N3),
-    upload(?N3),
-    connect(?N3, ?N1),
+    tc(fun() -> pong = ping_pong:ping(?N1),
+                {badrpc,_} = call(?N1, ping_pong, ping, [?N3]),
+                pong = call(?N1, ping_pong, ping, [?N4]),
+                pong = call(?N1, ping_pong, ping, [])
+       end, "Ping pong 3 time correct. 1 time bad"),
 
+    tc(fun () -> ok = node_up(?N3),
+                 ok = upload(?N3),
+                 ok = connect(?N3, ?N1)
+       end, "New node up and connect"),
+    
     {ok, [_,_,_,_]} = master_node:i_nodes(),
     pong = call(?N3, ping_pong, ping, []),
     
+    ok.
+
+
+
+ping_pong_log() ->
+    [{doc, "Simple ping_pong_log test"}].
+
+ping_pong_log(Config) when is_list(Config) ->
+    tc(fun() -> master_task_manager:add_local_task(
+                  ping_pong_log, start_link, [],"some text")
+       end, "Add new task"),
+
+    tc(fun() -> pong = ping_pong_log:ping(?N3)
+       end, "Ping pong"),
+
+    {ok, 1} = master_node:i_get_table_size(ping_pong_log),
+    
+    tc(fun() -> ok = node_down(?N3)
+       end, "Node down"),
+
+    {ok, [_,_,_]} = master_node:i_nodes(),
+
+    tc(fun() -> pong = ping_pong_log:ping(?N1),
+                {badrpc,_} = call(?N1, ping_pong_log, ping, [?N3]),
+                pong = call(?N1, ping_pong_log, ping, [?N4]),
+                pong = call(?N1, ping_pong_log, ping, [])
+       end, "Ping pong 3 time correct. 1 time bad"),
+    {ok, 4} = master_node:i_get_table_size(ping_pong_log),
+
+    tc(fun () -> ok = node_up(?N3),
+                 ok = upload(?N3),
+                 ok = connect(?N3, ?N1)
+       end, "New node up and connect"),
+
+    {ok, [_,_,_,_]} = master_node:i_nodes(),
+    pong = call(?N3, ping_pong_log, ping, []),
+
+    {ok, 5} = master_node:i_get_table_size(ping_pong_log),
     ok.
 
 
@@ -166,11 +235,18 @@ ping_pong(Config) when is_list(Config) ->
 %%% Internal functions
 %%%===================================================================
 
+
+connect(Node, MasterNode) ->
+    call(Node, slave_node, connect, [MasterNode]).
+
+
+
 node_up(Node) ->
     URL = re:replace(atom_to_list(Node),"^[^@]*@","",[{return,list}]),
     open_port({spawn_executable, ?SSH},
-              [stream, {args, [URL, "-f",
-                               "erl -detached -noinput -name \""
+              [stream, {args, [URL,
+                               "-o", "PreferredAuthentications=publickey",
+                               "-f", "erl -detached -noinput -name \""
                                ++ atom_to_list(Node)
                                ++ "\" -setcookie \""
                                ++ atom_to_list(erlang:get_cookie())

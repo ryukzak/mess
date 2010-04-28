@@ -15,6 +15,7 @@
          start_link/1
          , connect/0
          , i_get_table/1
+         , i_get_table_size/1
          , i_where/0
          , i_tables/0
          , i_nodes/0
@@ -76,6 +77,8 @@ connect() ->
     gen_server:call({global, ?SERVER}, {connect, SlaveNode}).
 
 i_get_table(Table) -> gen_server:call({global, ?SERVER}, {get_table, Table}).
+i_get_table_size(Table) ->
+    gen_server:call({global, ?SERVER}, {get_table_size, Table}).
 
 i_tables() ->      gen_server:call({global, ?SERVER}, tables).
 i_nodes() ->       gen_server:call({global, ?SERVER}, nodes).
@@ -158,6 +161,9 @@ handle_call(used_module, _From, State) ->
 
 handle_call({get_table, Table}, _From, State) ->
     {reply, {ok, table_to_list(Table)}, State};
+
+handle_call({get_table_size, Table}, _From, State) ->
+    {reply, {ok, mnesia:table_info(Table, size)}, State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
