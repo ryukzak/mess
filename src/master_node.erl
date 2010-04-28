@@ -164,8 +164,6 @@ handle_call(_Request, _From, State) ->
     {reply, Reply, State}.
 
 
-
-
 table_to_list(Table) ->
     {atomic, List} =
         transaction(
