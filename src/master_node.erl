@@ -106,7 +106,6 @@ init([undefined]) ->
     % Create system table for cluster
     create_system_table(),
     create_counter(local_task, 0),
-    application:set_env(slave_node, master_node, node()),
     spawn(fun() -> application:start(slave_node) end),
     {ok, #state{}};
 
@@ -145,7 +144,7 @@ handle_call({connect, SlaveNode}, _From, State) ->
     
     copy_system_table(SlaveNode), % fixme
 
-    Reply = ok,
+    Reply = {ok, SlaveNode},
     {reply, Reply, State};
 
 handle_call(tables, _From, State) ->

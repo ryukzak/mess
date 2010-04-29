@@ -16,6 +16,7 @@
          , start_child/3
          , start_child/1
          , terminate_all_child/0
+         , info/0
         ]).
 
 %% Supervisor callbacks
@@ -51,6 +52,10 @@ terminate_all_child() ->
          supervisor:terminate_child(?SERVER, Id),
          supervisor:delete_child(?SERVER, Id)
      end || {Id,_,_,_} <- ChildList].
+
+info() ->
+    supervisor:which_children(?SERVER).
+    
 
 %%%===================================================================
 %%% Supervisor callbacks

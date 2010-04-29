@@ -80,10 +80,11 @@ tc(Fun, Str) when is_function(Fun) ->
 
 tc(Str, Fun) ->
     Time = now(),
-    Fun(),
+    Result = Fun(),
     io:format("~s: ~p sec~n",[Str,
                               timer:now_diff(now(),Time) / 1000000
-                             ]).
+                             ]),
+    Result.
     
 
 
@@ -155,8 +156,8 @@ end_per_testcase(_TestCase, _Config) ->
 %% @end
 %%--------------------------------------------------------------------
 all() -> [ping_pong
-          , ping_pong_log
-          , ping_pong_node_depend_log
+          % , ping_pong_log
+          % , ping_pong_node_depend_log
          ].
 
 %%--------------------------------------------------------------------
@@ -166,10 +167,29 @@ ping_pong() ->
     [{doc, "Simple ping_pong test"}].
 
 ping_pong(Config) when is_list(Config) ->
-    tc(fun() -> master_task_manager:add_local_task(
-                  ping_pong, start_link, [],"some text")
-       end, "Add new task"),
+    ?SLEEP,
+    io:format("Before add task: ~p~n", [info()]),
+    
+    io:format("Add task: ~p~n",
+              [tc(fun() -> master_task_manager:add_local_task(
+                             ping_pong, start_link, [],"some text")
+                  end, "Add new task")]),
 
+    io:format("After add task: ~p~n", [info()]),
+    ?SLEEP,
+    io:format("After add task sleep: ~p~n", [info()]),
+
+    io:format("~p supervisor: ~p~n",
+              [?N1, call(?N1, local_task_sup,info, [])]),
+    io:format("~p supervisor: ~p~n",
+              [?N2, call(?N2, local_task_sup,info, [])]),
+    io:format("~p supervisor: ~p~n",
+              [?N3, call(?N3, local_task_sup,info, [])]),
+    io:format("~p supervisor: ~p~n",
+              [?N4, call(?N4, local_task_sup,info, [])]),
+
+    {ok, ?N1} = master_node:i_where(),
+    
     io:format("~p~n", [ping_pong:ping(?N1)]),
     io:format("~p~n", [ping_pong:ping(?N2)]),
     io:format("~p~n", [ping_pong:ping(?N3)]),
@@ -210,9 +230,17 @@ ping_pong_log() ->
     [{doc, "Simple ping_pong_log test"}].
 
 ping_pong_log(Config) when is_list(Config) ->
-    tc(fun() -> master_task_manager:add_local_task(
-                  ping_pong_log, start_link, [],"some text")
-       end, "Add new task"),
+    io:format("Add task: ~p~n",
+              [tc(fun() -> master_task_manager:add_local_task(
+                             ping_pong_log, start_link, [],"some text")
+                  end, "Add new task")]),
+    % tc(fun() -> master_task_manager:add_local_task(
+    %               ping_pong_log, start_link, [],"some text")
+    %    end, "Add new task"),
+
+    ?SLEEP,
+
+    {ok, ?N1} = master_node:i_where(),
 
     tc(fun() -> pong = ping_pong_log:ping(?N3)
        end, "Ping pong"),
@@ -253,13 +281,22 @@ ping_pong_node_depend_log() ->
     [{doc, "Simple ping_pong_log test"}].
 
 ping_pong_node_depend_log(Config) when is_list(Config) ->
-    tc(fun() -> master_task_manager:add_local_task(
-                  ping_pong_node_depend_log, start_link, [],"some text")
-       end, "Add new task"),
+    io:format("Add task: ~p~n",
+              [tc(fun() -> master_task_manager:add_local_task(
+                             ping_pong_node_depend_log,
+                             start_link, [],"some text")
+                  end, "Add new task")]),
+    % tc(fun() -> master_task_manager:add_local_task(
+    %               ping_pong_node_depend_log, start_link, [],"some text")
+    %    end, "Add new task"),
 
+    ?SLEEP,
+    
     tc(fun() -> pong = ping_pong_node_depend_log:ping(?N3)
        end, "Ping pong"),
 
+    {ok, ?N1} = master_node:i_where(),
+    
     ?SSLEEP,
     {ok, 1} = master_node:i_get_table_size(ping_pong_node_depend_log),
     

@@ -81,9 +81,10 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(reset_task, _From, State) ->
-    local_task_sup:terminate_all_child(),
-    Reply = ok,
+handle_call({add_local_task, M, F, A}, _From, State) ->
+    % async start task proccess.
+    SupResult = local_task_sup:start_child(M, F, A),
+    Reply = {ok, M, F, A, SupResult},
     {reply, Reply, State};
 
 handle_call(start_all_local_task, _From, State) ->
@@ -92,8 +93,8 @@ handle_call(start_all_local_task, _From, State) ->
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({add_local_task, M, F, A}, _From, State) ->
-    local_task_sup:start_child(M, F, A),
+handle_call(reset_task, _From, State) ->
+    local_task_sup:terminate_all_child(),
     Reply = ok,
     {reply, Reply, State};
 

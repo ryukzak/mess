@@ -52,8 +52,8 @@ connect(Node) ->
     connect().
 
 connect() ->
-    application:start(slave_node),
-    slave_task_manager:start_all_local_task().
+    ok = application:start(slave_node),
+    ok = slave_task_manager:start_all_local_task().
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -71,7 +71,9 @@ connect() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    random:seed(now()),
+    random:seed(now()), 
+    % this sleep need....
+    timer:sleep(500), % slave_task_manager may be not ready?
     master_node:connect(),
     {ok, #state{}}.
 

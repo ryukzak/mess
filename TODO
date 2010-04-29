@@ -7,3 +7,8 @@ pool
 atom_task
 
 atom_task_restart when crash.
+
+
+BUGFIX some time node1 don't start ping_pong service.
+
+May be some problem when supvisor restart master node.

@@ -88,6 +88,19 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
+    % get from module with this task table list.
+    NecessaryTables = necessary_task_table(M),
+
+    {Nodes, TablesCreateFunction} =
+        mnesia_add_local_task(NecessaryTables, M, F, A, Comment),
+
+    create_necessary_table(TablesCreateFunction),
+
+    Reply = [{N, slave_task_manager:add_local_task(N, M, F, A)}
+             || N <- Nodes],
+    {reply, {ok, Reply}, State};
+
 handle_call(get_local_task, _From, State) ->
     Q = qlc:q([{T#local_task.m
                 , T#local_task.f
@@ -110,18 +123,6 @@ handle_call(reset_task, _From, State) ->
     [{atomic,ok} = mnesia:delete_table(T) || T <- Tables],
     % stop all atom and local task on each node
     [slave_task_manager:reset_task(N) || N <- Nodes],
-    Reply = ok,
-    {reply, Reply, State};
-
-handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
-    NecessaryTables = necessary_task_table(M),
-
-    {Nodes, TablesCreateFunction} =
-        mnesia_add_local_task(NecessaryTables, M, F, A, Comment),
-
-    create_necessary_table(TablesCreateFunction),
-    add_local_task_for_each_node(Nodes, M, F, A),
-    
     Reply = ok,
     {reply, Reply, State};
 
@@ -193,10 +194,29 @@ necessary_task_table(M) ->
 
 
 
+create_necessary_table(TablesCreateFunction) ->
+    [FCreate() || FCreate <- TablesCreateFunction].
+
+
+
+mnesia_add_local_task(NecessaryTables, M, F, A, Comment) ->
+    Q1 = q_nodes(),
+    Q2 = q_create_necessary_table_function(NecessaryTables),
+    Fun = fun() -> NextValue = util:next_value(local_task),
+                   mnesia:write(#used_module{name = M}),
+                   mnesia:write(#local_task{id = NextValue
+                                            , m = M, f = F, a = A
+                                            , comment = Comment
+                                           }),
+                   {qlc:eval(Q1), qlc:eval(Q2)}
+          end,
+    {atomic, {Nodes, TablesCreateFunction}} = mnesia:transaction(Fun),
+    {Nodes, TablesCreateFunction}.
+
+
+
 q_nodes() ->
     qlc:q([N#node.address || N <- mnesia:table(node)]).
-
-
 
 q_create_necessary_table_function(NecessaryTables) ->
     case mnesia:table_info(tables, size) of
@@ -215,29 +235,3 @@ q_create_necessary_table_function(NecessaryTables) ->
 
 
 
-create_necessary_table(TablesCreateFunction) ->
-    [FCreate() || FCreate <- TablesCreateFunction].
-
-
-
-add_local_task_for_each_node(Nodes, M, F, A) ->
-    [slave_task_manager:add_local_task(N, M, F, A)
-     || N <- Nodes].
-
-
-
-mnesia_add_local_task(NecessaryTables, M, F, A, Comment) ->
-    Q1 = q_nodes(),
-    Q2 = q_create_necessary_table_function(NecessaryTables),
-    Fun = fun() -> NextValue = util:next_value(local_task),
-                   mnesia:write(#used_module{name = M}),
-                   mnesia:write(#local_task{id = NextValue
-                                            , m = M
-                                            , f = F
-                                            , a = A
-                                            , comment = Comment
-                                           }),
-                   {qlc:eval(Q1), qlc:eval(Q2)}
-          end,
-    {atomic, {Nodes, TablesCreateFunction}} = mnesia:transaction(Fun),
-    {Nodes, TablesCreateFunction}.
