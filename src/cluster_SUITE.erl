@@ -67,6 +67,9 @@ init_per_suite(Config) ->
     
     tc(fun() -> call(?N1, application, start, [master_node])
                 end,"Start master node"),
+
+    spawn(?N1, application, start, [sasl]),
+    
     ?SLEEP,
     tc(fun() -> connect(?N2,?N1),
                 connect(?N3,?N1),
@@ -155,14 +158,60 @@ end_per_testcase(_TestCase, _Config) ->
 %% @spec all() -> TestCases
 %% @end
 %%--------------------------------------------------------------------
-all() -> [ping_pong
-          % , ping_pong_log
-          % , ping_pong_node_depend_log
+all() -> [node_crash
+          , ping_pong
+          , ping_pong_log
+          , ping_pong_node_depend_log
          ].
 
 %%--------------------------------------------------------------------
 %% Test cases starts here.
 %%--------------------------------------------------------------------
+node_crash() ->
+    [{doc, "Crash some node, and restart it."}].
+
+node_crash(Config) when is_list(Config) ->
+
+    tc(fun() -> ok = node_down(?N3)
+       end, "Node down"),
+
+    tc(fun() -> ok = node_down(?N1)
+       end, "Node down"),
+
+    % need long sleep, because all slave node wait some time to
+    % reconnect. It need to be optimize
+    ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
+    ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
+
+    {ok, [_,_]} = master_node:i_nodes(),
+    io:format("New master node: ~p~n", [master_node:i_where()]),
+    
+    tc(fun() -> ok = node_down(?N2)
+       end, "Node down"),
+
+    ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
+    ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
+
+    {ok, [_]} = master_node:i_nodes(),
+    {ok, MasterNode} =  master_node:i_where(),
+    io:format("New master node: ~p~n", [MasterNode]),
+    
+    tc(fun () -> ok = node_up(?N3),
+                 ok = node_up(?N1),
+                 ok = node_up(?N2),
+                 ok = upload(?N3),
+                 ok = connect(?N3, MasterNode),
+                 ok = upload(?N1),
+                 ok = connect(?N1, MasterNode),
+                 ok = upload(?N2),
+                 ok = connect(?N2, MasterNode)
+       end, "New node up and connect"),
+    
+    {ok, [_,_,_,_]} = master_node:i_nodes(),
+    
+    ok.
+
+
 ping_pong() ->
     [{doc, "Simple ping_pong test"}].
 
@@ -188,8 +237,6 @@ ping_pong(Config) when is_list(Config) ->
     io:format("~p supervisor: ~p~n",
               [?N4, call(?N4, local_task_sup,info, [])]),
 
-    {ok, ?N1} = master_node:i_where(),
-    
     io:format("~p~n", [ping_pong:ping(?N1)]),
     io:format("~p~n", [ping_pong:ping(?N2)]),
     io:format("~p~n", [ping_pong:ping(?N3)]),
@@ -239,8 +286,6 @@ ping_pong_log(Config) when is_list(Config) ->
     %    end, "Add new task"),
 
     ?SLEEP,
-
-    {ok, ?N1} = master_node:i_where(),
 
     tc(fun() -> pong = ping_pong_log:ping(?N3)
        end, "Ping pong"),
@@ -295,8 +340,6 @@ ping_pong_node_depend_log(Config) when is_list(Config) ->
     tc(fun() -> pong = ping_pong_node_depend_log:ping(?N3)
        end, "Ping pong"),
 
-    {ok, ?N1} = master_node:i_where(),
-    
     ?SSLEEP,
     {ok, 1} = master_node:i_get_table_size(ping_pong_node_depend_log),
     
