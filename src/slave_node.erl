@@ -48,7 +48,7 @@ start_link() ->
 %%--------------------------------------------------------------------
 connect(Node) ->
     true = net_kernel:connect_node(Node),    
-    timer:sleep(500), % need for syncronize global name
+    timer:sleep(300), % need for syncronize global name
     connect().
 
 connect() ->

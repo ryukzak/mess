@@ -12,9 +12,13 @@
 -export([
          start_mnesia/0
          , next_value/1
+         , wait_for/1
         ]).
 
 -include_lib("tables.hrl").
+
+-define(WAIT_TIMEOUT,75).
+-define(WAIT_TIMES,50).
 
 %%%===================================================================
 %%% API
@@ -41,6 +45,17 @@ next_value(Name) ->
     Value.
     
 
+wait_for(Fun) ->
+    wait_for(Fun, ?WAIT_TIMES).
+
+wait_for(_Fun, 0) -> timeout;
+wait_for(Fun, Times) ->
+    timer:sleep(?WAIT_TIMEOUT),
+    case Fun of
+        true -> ok;
+        false -> wait_for(Fun, Times - 1)
+    end.
+            
     
 %%--------------------------------------------------------------------
 %% @doc
