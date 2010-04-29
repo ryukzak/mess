@@ -72,8 +72,6 @@ connect() ->
 %%--------------------------------------------------------------------
 init([]) ->
     random:seed(now()), 
-    % this sleep need....
-    timer:sleep(500), % slave_task_manager may be not ready?
     master_node:connect(),
     {ok, #state{}}.
 

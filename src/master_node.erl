@@ -106,7 +106,8 @@ init([undefined]) ->
     % Create system table for cluster
     create_system_table(),
     create_counter(local_task, 0),
-    spawn(fun() -> application:start(slave_node) end),
+    spawn(fun() -> timer:sleep(500),
+                   application:start(slave_node) end),
     {ok, #state{}};
 
 init([_FromNode]) ->
@@ -171,15 +172,6 @@ handle_call({get_table_size, Table}, _From, State) ->
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
-
-
-table_to_list(Table) ->
-    {atomic, List} =
-        transaction(
-          fun() ->
-                  qlc:eval(qlc:q([T || T <- mnesia:table(Table)]))
-          end),
-    List.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -319,3 +311,13 @@ clean_db(DownNode) ->
                         [catch qlc:eval(M:clean([DownNode]))
                          || M <- UsedModule]
                 end).
+
+
+
+table_to_list(Table) ->
+    {atomic, List} =
+        transaction(
+          fun() -> qlc:eval(qlc:q([T || T <- mnesia:table(Table)]))
+          end),
+    List.
+

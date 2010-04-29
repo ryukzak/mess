@@ -1,6 +1,6 @@
-Cluster test suite (fix some problem with this).
+Fix connect timeout of slave node. The most efficent way is a, remove time out, and use some thing as a ping_loop.
 
-Fix problem with needed time-out. (when it not really need)
+Cluster test suite (fix some problem with this).
 
 pool
 
