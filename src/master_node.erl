@@ -113,7 +113,11 @@ init([undefined]) ->
 init([_FromNode]) ->
     % Start new master node in cluster
     remove_down_node_and_clean_db(),
-    mnesia:change_config(extra_db_nodes, nodes()),
+
+    Nodes = [N || N <- table_to_list(node),
+                  lists:member(N, [node()|nodes()])],
+        
+    mnesia:change_config(extra_db_nodes, Nodes),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -291,7 +295,8 @@ copy_system_table(_) -> ok.
 
 
 remove_down_node_and_clean_db() ->
-    Nodes = [node()|nodes()],
+    Nodes = [N || N <- table_to_list(node),
+                  lists:member(N, [node()|nodes()])],
     Q1 = qlc:q([begin
                     mnesia:delete_object(N),
                     N#node.address

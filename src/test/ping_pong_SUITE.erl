@@ -45,7 +45,7 @@ init_per_suite(Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
-    true = exit(whereis(ping_pong), normal),
+    true = exit(whereis(ping_pong), kill),
     ok.
 
 %%--------------------------------------------------------------------

@@ -31,7 +31,7 @@
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    ok = application:start(mnesia),
+    application:start(mnesia),
     {ok, Pid} = ping_pong_log:start_link(),
     [{Name, Fun}] = ping_pong_log:tables(),
     unlink(Pid),
@@ -48,8 +48,8 @@ init_per_suite(Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
-    ok = application:stop(mnesia),
-    true = exit(whereis(ping_pong_log), normal),
+    application:stop(mnesia),
+    true = exit(whereis(ping_pong_log), kill),
     ok.
 
 %%--------------------------------------------------------------------
