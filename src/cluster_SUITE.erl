@@ -21,6 +21,7 @@
 -define(NODE_UP_TIMEOUT,50).
 -define(PING_LOOP_REPEAT,40).
 -define(SLEEP,timer:sleep(100)).
+-define(SSLEEP,timer:sleep(25)).
 
 % -define(N1,'node1@192.168.1.19').
 % -define(N2,'node2@192.168.1.19').
@@ -64,11 +65,13 @@ init_per_suite(Config) ->
                 upload(?N4)
        end,"Node upload system"),
     
-    tc(fun() -> call(?N1, application, start, [master_node]),
-                connect(?N2,?N1),
+    tc(fun() -> call(?N1, application, start, [master_node])
+                end,"Start master node"),
+    ?SLEEP,
+    tc(fun() -> connect(?N2,?N1),
                 connect(?N3,?N1),
                 connect(?N4,?N1)
-       end,"Node start cluster"),
+       end,"Connect node"),
     Config.
 
 
@@ -151,9 +154,9 @@ end_per_testcase(_TestCase, _Config) ->
 %% @spec all() -> TestCases
 %% @end
 %%--------------------------------------------------------------------
-all() -> [
-          ping_pong
+all() -> [ping_pong
           , ping_pong_log
+          , ping_pong_node_depend_log
          ].
 
 %%--------------------------------------------------------------------
@@ -167,12 +170,22 @@ ping_pong(Config) when is_list(Config) ->
                   ping_pong, start_link, [],"some text")
        end, "Add new task"),
 
+    io:format("~p~n", [ping_pong:ping(?N1)]),
+    io:format("~p~n", [ping_pong:ping(?N2)]),
+    io:format("~p~n", [ping_pong:ping(?N3)]),
+    io:format("~p~n", [ping_pong:ping(?N4)]),
+    io:format("==================~n"),
+    
     tc(fun() -> pong = ping_pong:ping(?N3)
        end, "Ping pong"),
 
     tc(fun() -> ok = node_down(?N3)
        end, "Node down"),
-    
+
+    % need for get message about node down (node down call guarantees
+    % only that the node does not answer)
+    ?SLEEP,
+
     {ok, [_,_,_]} = master_node:i_nodes(),
 
     tc(fun() -> pong = ping_pong:ping(?N1),
@@ -203,11 +216,15 @@ ping_pong_log(Config) when is_list(Config) ->
 
     tc(fun() -> pong = ping_pong_log:ping(?N3)
        end, "Ping pong"),
-
+    ?SSLEEP,
     {ok, 1} = master_node:i_get_table_size(ping_pong_log),
     
     tc(fun() -> ok = node_down(?N3)
        end, "Node down"),
+
+    % need for get message about node down (node down call guarantees
+    % only that the node does not answer)
+    ?SLEEP,
 
     {ok, [_,_,_]} = master_node:i_nodes(),
 
@@ -216,6 +233,7 @@ ping_pong_log(Config) when is_list(Config) ->
                 pong = call(?N1, ping_pong_log, ping, [?N4]),
                 pong = call(?N1, ping_pong_log, ping, [])
        end, "Ping pong 3 time correct. 1 time bad"),
+    ?SSLEEP,
     {ok, 4} = master_node:i_get_table_size(ping_pong_log),
 
     tc(fun () -> ok = node_up(?N3),
@@ -225,8 +243,55 @@ ping_pong_log(Config) when is_list(Config) ->
 
     {ok, [_,_,_,_]} = master_node:i_nodes(),
     pong = call(?N3, ping_pong_log, ping, []),
-
+    ?SSLEEP,
     {ok, 5} = master_node:i_get_table_size(ping_pong_log),
+    ok.
+
+
+
+ping_pong_node_depend_log() ->
+    [{doc, "Simple ping_pong_log test"}].
+
+ping_pong_node_depend_log(Config) when is_list(Config) ->
+    tc(fun() -> master_task_manager:add_local_task(
+                  ping_pong_node_depend_log, start_link, [],"some text")
+       end, "Add new task"),
+
+    tc(fun() -> pong = ping_pong_node_depend_log:ping(?N3)
+       end, "Ping pong"),
+
+    ?SSLEEP,
+    {ok, 1} = master_node:i_get_table_size(ping_pong_node_depend_log),
+    
+    tc(fun() -> ok = node_down(?N3)
+       end, "Node down"),
+
+    % need for get message about node down (node down call guarantees
+    % only that the node does not answer)
+    ?SLEEP,
+
+    {ok, 0} = master_node:i_get_table_size(ping_pong_node_depend_log),
+    {ok, [_,_,_]} = master_node:i_nodes(),
+
+    tc(fun() -> pong = ping_pong_node_depend_log:ping(?N1),
+                {badrpc,_} = call(?N1, ping_pong_node_depend_log,
+                                  ping, [?N3]),
+                pong = call(?N1, ping_pong_node_depend_log, ping, [?N4]),
+                pong = call(?N1, ping_pong_node_depend_log, ping, [])
+       end, "Ping pong 3 time correct. 1 time bad"),
+    ?SSLEEP,
+    {ok, 3} = master_node:i_get_table_size(ping_pong_node_depend_log),
+
+    tc(fun () -> ok = node_up(?N3),
+                 ok = upload(?N3),
+                 ok = connect(?N3, ?N1)
+       end, "New node up and connect"),
+
+    {ok, [_,_,_,_]} = master_node:i_nodes(),
+    pong = call(?N3, ping_pong_node_depend_log, ping, []),
+
+    ?SSLEEP,
+    {ok, 4} = master_node:i_get_table_size(ping_pong_node_depend_log),
     ok.
 
 
