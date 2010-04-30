@@ -115,6 +115,22 @@ handle_call({add_local_task, #local_task{m=M
              || N <- Nodes],
     {reply, {ok, Reply}, State};
 
+handle_call({add_atom_task, #atom_task{m=M
+                                      , node=Node} = Task}, _From, State) ->
+    % get from module with this task table list.
+    NecessaryTables = necessary_task_table(M),
+    RunOnNode = case Node of
+                    undefined -> pool:get_node();
+                    _ -> Node
+                end,
+    TablesCreateFunction =
+        mnesia_add_atom_task(NecessaryTables,
+                             Task#atom_task{run_on_node = RunOnNode}),
+    create_necessary_table(TablesCreateFunction),
+    Reply = ok,
+    {reply, Reply, State};
+
+
 handle_call(get_local_task, _From, State) ->
     Q = qlc:q([{T#local_task.m
                 , T#local_task.f
@@ -225,6 +241,10 @@ mnesia_add_local_task(NecessaryTables, #local_task{m=M
     {atomic, {Nodes, TablesCreateFunction}} = mnesia:transaction(Fun),
     {Nodes, TablesCreateFunction}.
 
+
+
+mnesia_add_atom_task(_NecessaryTables, _Task) ->
+    undefined.
 
 
 q_nodes() ->

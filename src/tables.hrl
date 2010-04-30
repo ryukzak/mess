@@ -11,6 +11,7 @@
                     , maxT = 2000
                     , currentR = 0
                     , node
+                    , run_on_node
                     , from
                     , exit_msg
                     , m, f, a, comment}).
