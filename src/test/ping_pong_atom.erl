@@ -72,13 +72,23 @@ ping(Node) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    Fun = fun(Pid, Tag) -> spawn(fun() -> Pid ! Tag
-                                 end) end,
+    Fun = fun(Pid, Tag) -> master_task_manager:add_atom_task(
+                             ping_pong_atom, do, [Pid, Tag],
+                             [{comment, "It's real erlang ping pong"}
+                              , {node, undefined}
+                              , {restart, transient}
+                              , {maxT, 2000}
+                              , {maxR, 4}
+                              , {exit_msg, undefined}
+                             ]) end,
     {ok, #state{function = Fun}};
 init([stand_alone]) ->
-    Fun = fun(Pid, Tag) -> spawn(fun() -> Pid ! Tag
-                                 end) end,
+    Fun = fun(Pid, Tag) -> spawn(ping_pong_atom, do, [Pid, Tag])
+          end,
     {ok, #state{function = Fun}}.
+
+do(From, Tag) ->
+    From ! Tag.
 
 %%--------------------------------------------------------------------
 %% @private

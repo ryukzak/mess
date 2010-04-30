@@ -127,6 +127,7 @@ handle_call({add_atom_task, #atom_task{m=M
         mnesia_add_atom_task(NecessaryTables,
                              Task#atom_task{run_on_node = RunOnNode}),
     create_necessary_table(TablesCreateFunction),
+    slave_task_manager:add_atom_task(),
     Reply = ok,
     {reply, Reply, State};
 
@@ -273,6 +274,7 @@ parse_atom_option(T, [O|Os]) ->
              {exit_msg, subscribe} -> T#atom_task{exit_msg = subscribe};
              {exit_msg, undefined} -> T#atom_task{exit_msg = undefined};
              {node, Node} -> T#atom_task{node = Node};
+             {node, undefined} -> T#atom_task{node = undefined};
              {maxT, MaxT} -> T#atom_task{maxT = MaxT};
              {maxR, MaxR} -> T#atom_task{maxR = MaxR};
              {restart, permanent} -> T#atom_task{restart = permanent};

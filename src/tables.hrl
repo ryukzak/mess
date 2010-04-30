@@ -5,16 +5,18 @@
 
 -record(local_task, {id, m, f, a, comment}).
 
--record(atom_task, {id
+-record(atom_task, {id % auto
                     , restart = transient
                     , maxR = 4
                     , maxT = 2000
-                    , currentR = 0
-                    , node
-                    , run_on_node
-                    , from
+                    , currentR = 0 % auto
+                    , node 
+                    , run_on_node % auto
+                    , from % auto
                     , exit_msg
                     , m, f, a, comment}).
+
+% all row with tag "auto" add automatical
 
 % restart :: permanent (always restart) | temporary (not restart) |
 % transient (restart only if exit reason abnormaly)

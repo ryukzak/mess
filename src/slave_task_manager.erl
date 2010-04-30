@@ -16,6 +16,7 @@
          , add_local_task/4
          , start_all_local_task/0
          , reset_task/1
+         , add_atom_task/1
         ]).
 
 %% gen_server callbacks
@@ -23,6 +24,8 @@
          terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
+
+-include_lib("tables.hrl").
 
 -record(state, {}).
 
@@ -39,6 +42,9 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+
+add_atom_task(#atom_task{run_on_node = Node} = Task) ->
+    get_server:call({?SERVER, Node}, {add_atom_task, Task}).
 
 add_local_task(Node, M, F, A) ->
     gen_server:call({?SERVER, Node},
@@ -81,6 +87,11 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({add_atom_task, Task}, _From, State) ->
+    
+    Reply = ok,
+    {reply, Reply, State};
+
 handle_call({add_local_task, M, F, A}, _From, State) ->
     % async start task proccess.
     SupResult = local_task_sup:start_child(M, F, A),
