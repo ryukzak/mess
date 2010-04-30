@@ -172,6 +172,11 @@ node_crash() ->
 
 node_crash(Config) when is_list(Config) ->
 
+    {ok, MN0} = master_node:i_where(),
+    io:format("Pool node: ~n~p",
+              [[_,_,_,_] = call(MN0,pool,get_nodes,[])]),
+
+    
     tc(fun() -> ok = node_down(?N3)
        end, "Node down"),
 
@@ -183,6 +188,10 @@ node_crash(Config) when is_list(Config) ->
     ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
     ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
 
+    {ok, MN1} = master_node:i_where(),
+    io:format("Pool node: ~n~p",
+              [[_,_] = call(MN1,pool,get_nodes,[])]),
+
     {ok, [_,_]} = master_node:i_nodes(),
     io:format("New master node: ~p~n", [master_node:i_where()]),
     
@@ -191,6 +200,10 @@ node_crash(Config) when is_list(Config) ->
 
     ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
     ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP, ?SLEEP,
+
+    {ok, MN2} = master_node:i_where(),
+    io:format("Pool node: ~n~p",
+              [[_] = call(MN2,pool,get_nodes,[])]),
 
     {ok, [_]} = master_node:i_nodes(),
     {ok, MasterNode} =  master_node:i_where(),
@@ -209,6 +222,10 @@ node_crash(Config) when is_list(Config) ->
     
     {ok, [_,_,_,_]} = master_node:i_nodes(),
     
+    {ok, MN3} = master_node:i_where(),
+    io:format("Pool node: ~n~p",
+              [[_,_,_,_] = call(MN3,pool,get_nodes,[])]),
+
     ok.
 
 

@@ -106,6 +106,7 @@ init([undefined]) ->
     % Create system table for cluster
     create_system_table(),
     create_counter(local_task, 0),
+    [] = pool:start(cluster_pool),
     spawn(fun() -> timer:sleep(500),
                    application:start(slave_node) end),
     {ok, #state{}};
@@ -113,10 +114,9 @@ init([undefined]) ->
 init([_FromNode]) ->
     % Start new master node in cluster
     remove_down_node_and_clean_db(),
-
+    [] = pool:start(cluster_pool),
     Nodes = [N || N <- table_to_list(node),
                   lists:member(N, [node()|nodes()])],
-        
     mnesia:change_config(extra_db_nodes, Nodes),
     {ok, #state{}}.
 
@@ -141,6 +141,7 @@ handle_call(where, _From, State) ->
 handle_call({connect, SlaveNode}, _From, State) ->
     monitor_node(SlaveNode, true),
     transaction(fun() -> mnesia:write(#node{address=SlaveNode}) end),
+    pool:attach(SlaveNode),
     io:format("~p~n",[SlaveNode]),
     
     copy_table(SlaveNode), % fixme
