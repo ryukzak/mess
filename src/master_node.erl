@@ -105,7 +105,6 @@ init([undefined]) ->
     % Start cluster
     % Create system table for cluster
     create_system_table(),
-    create_counter(local_task, 0),
     [] = pool:start(cluster_pool),
     spawn(fun() -> timer:sleep(500),
                    application:start(slave_node) end),
@@ -266,7 +265,9 @@ create_system_table() ->
         mnesia:create_table(atom_task,
                             [{ram_copies, [node()]}
                              , {type, ordered_set}
-                             , {attributes,record_info(fields, atom_task)}]).
+                             , {attributes,record_info(fields, atom_task)}]),
+    create_counter(local_task, 0),
+    create_counter(atom_task, 0).
 
 
 
