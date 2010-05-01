@@ -1,6 +1,9 @@
 -record(node, {address, nil}).
 -record(counter, {name, value}).
 -record(tables,{name, nil}). % type :: simple | node_depended
+
+% used to clean mnesia, when some of the nodes are disconnected (in
+% master_node module)
 -record(used_module,{name, nil}).
 
 -record(local_task, {id, m, f, a, comment}).
