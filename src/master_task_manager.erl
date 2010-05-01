@@ -273,8 +273,8 @@ parse_atom_option(T, [O|Os]) ->
              {comment, Comment} -> T#atom_task{comment = Comment};
              {exit_msg, subscribe} -> T#atom_task{exit_msg = subscribe};
              {exit_msg, undefined} -> T#atom_task{exit_msg = undefined};
-             {node, Node} -> T#atom_task{node = Node};
              {node, undefined} -> T#atom_task{node = undefined};
+             {node, Node} -> T#atom_task{node = Node};
              {maxT, MaxT} -> T#atom_task{maxT = MaxT};
              {maxR, MaxR} -> T#atom_task{maxR = MaxR};
              {restart, permanent} -> T#atom_task{restart = permanent};
