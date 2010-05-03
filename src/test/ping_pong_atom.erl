@@ -91,8 +91,7 @@ do(From, Tag) ->
 rand_do(From, Tag) ->
     % random error
     {_,_,Micro} = now(),
-    if Micro rem 10 < 4 ->
-            io:format("Process error: ~p~n", Tag);
+    if Micro rem 10 < 8 -> erlang:error("I want this error.");
        true -> ok
     end,
     From ! Tag.

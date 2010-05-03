@@ -63,10 +63,10 @@ add_atom_task(M, F, A, Option) ->
     gen_server:call({global, ?SERVER}, {add_atom_task, Task}).
 
 restart_atom_task(Task) ->
-    gen_server:call({global, ?SERVER}, {restart_atom_task, Task}).
+    gen_server:cast({global, ?SERVER}, {restart_atom_task, Task}).
 
 stop_atom_task(Task) ->
-    gen_server:call({global, ?SERVER}, {stop_atom_task, Task}).
+    gen_server:cast({global, ?SERVER}, {stop_atom_task, Task}).
 
 reset_task() -> gen_server:call({global, ?SERVER}, reset_task).
 
@@ -120,6 +120,8 @@ handle_call({add_local_task, #local_task{mfa={M,_,_}
 
 handle_call({add_atom_task, #atom_task{mfa={M,_,_}
                                       } = Task0}, _From, State) ->
+    io:format("--------------------------------------------------~n"),
+    io:format("master_task add_atom_task~n"),
     % get from module with this task table list.
     NecessaryTables = necessary_task_table(M),
     Node = get_node_to_run(Task0),
@@ -128,25 +130,6 @@ handle_call({add_atom_task, #atom_task{mfa={M,_,_}
                              Task0#atom_task{run_on_node = Node}),
     create_necessary_table(TablesCreateFunction),
     slave_task_manager:add_atom_task(Task),
-    Reply = ok,
-    {reply, Reply, State};
-
-handle_call({restart_atom_task, #atom_task{history=History
-                                          } = Task}, _From, State) ->
-    Node = get_node_to_run(Task),
-    Task1 =  Task#atom_task{history = [now()|History]
-                            , run_on_node = Node
-                           },
-    Fun = fun() -> mnesia:write(Task1) end,
-    {atomic, _} = mnesia:transaction(Fun),
-    slave_task_manager:add_atom_task(Task),
-    Reply = ok,
-    {reply, Reply, State};
-
-handle_call({stop_atom_task, #atom_task{id=Id
-                                       } = _Task}, _From, State) ->
-    Fun = fun() -> mnesia:delete({atom_task, Id}) end,
-    {atomic,ok} = mnesia:transaction(Fun),
     Reply = ok,
     {reply, Reply, State};
 
@@ -187,6 +170,27 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({restart_atom_task, #atom_task{history=History
+                                          } = Task}, State) ->
+    io:format("master_task restart_atom_task~n"),
+    Node = get_node_to_run(Task),
+    {T,M,S} = now(),
+    Now = round(timer:hms(T,M,S)/1000),
+    Task1 =  Task#atom_task{history = [Now | History]
+                            , run_on_node = Node
+                           },
+    Fun = fun() -> mnesia:write(Task1) end,
+    {atomic, _} = mnesia:transaction(Fun),
+    slave_task_manager:add_atom_task(Task1),
+    {noreply, State};
+
+handle_cast({stop_atom_task, #atom_task{id=Id
+                                       } = _Task}, State) ->
+    io:format("master_task stop_atom_task~n"),
+    Fun = fun() -> mnesia:delete({atom_task, Id}) end,
+    {atomic,ok} = mnesia:transaction(Fun),
+    {noreply, State};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
