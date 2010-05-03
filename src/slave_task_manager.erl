@@ -113,6 +113,7 @@ handle_call(start_all_local_task, _From, State) ->
 
 handle_call(reset_task, _From, State) ->
     local_task_sup:terminate_all_child(),
+    ets:delete_all_objects(slave_atom_task),
     Reply = ok,
     {reply, Reply, State};
 

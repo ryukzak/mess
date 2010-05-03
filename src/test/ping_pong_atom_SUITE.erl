@@ -30,7 +30,7 @@
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    {ok, Pid} = ping_pong_atom:start_link(stand_alone),
+    {ok, Pid} = ping_pong_atom:start_link(),
     unlink(Pid),
     Config.
 
@@ -102,10 +102,10 @@ ping() ->
     [{doc, "Ping call"}].
 
 ping(Config) when is_list(Config) ->
-    pong = ping_pong_atom:ping().
+    pong = ping_pong_atom:ping_spawn().
 
 ping_on_node() ->
     [{doc, "Ping call to node"}]. %fixme english
 
 ping_on_node(Config) when is_list(Config) ->
-    pong = ping_pong_atom:ping(node()).
+    pong = ping_pong_atom:ping_spawn(node()).

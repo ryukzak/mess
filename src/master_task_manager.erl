@@ -309,6 +309,7 @@ parse_atom_option(T, []) -> T.
 
 
 get_node_to_run(#atom_task{node=Node}) ->
+    % fixme Node may be disconnected.
     case Node of
         undefined -> pool:get_node();
         _ -> Node

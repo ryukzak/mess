@@ -162,7 +162,9 @@ all() -> [node_crash
           , ping_pong
           , ping_pong_log
           , ping_pong_node_depend_log
+          , ping_pong_atom
          ].
+% all() -> [ping_pong_atom].
 
 %%--------------------------------------------------------------------
 %% Test cases starts here.
@@ -392,6 +394,45 @@ ping_pong_node_depend_log(Config) when is_list(Config) ->
     ok.
 
 
+
+ping_pong_atom() ->
+    [{doc, "Simple ping_pong atom task test"}].
+
+ping_pong_atom(Config) when is_list(Config) ->
+    % ?SLEEP,
+    % io:format("Add task: ~p~n",
+    %           [tc(fun() -> master_task_manager:add_local_task(
+    %                          ping_pong_atom, start_link, [],"some text")
+    %               end, "Add new task")]),
+    % ?SLEEP,
+    
+    % tc(fun() -> pong = ping_pong_atom:ping(?N3)
+    %    end, "Ping pong"),
+
+    % tc(fun() -> ok = node_down(?N3)
+    %    end, "Node down"),
+
+    % % need for get message about node down (node down call guarantees
+    % % only that the node does not answer)
+    % ?SLEEP,
+
+    % {ok, [_,_,_]} = master_node:i_nodes(),
+
+    % tc(fun() -> pong = ping_pong_atom:ping(?N1),
+    %             {badrpc,_} = call(?N1, ping_pong, ping, [?N3]),
+    %             pong = call(?N1, ping_pong, ping, [?N4]),
+    %             pong = call(?N1, ping_pong, ping, [])
+    %    end, "Ping pong 3 time correct. 1 time bad"),
+
+    % tc(fun () -> ok = node_up(?N3),
+    %              ok = upload(?N3),
+    %              ok = connect(?N3, ?N1)
+    %    end, "New node up and connect"),
+    
+    % {ok, [_,_,_,_]} = master_node:i_nodes(),
+    % pong = call(?N3, ping_pong, ping, []),
+    
+    ok.
 
 %%%===================================================================
 %%% Internal functions

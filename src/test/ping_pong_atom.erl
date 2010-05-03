@@ -13,7 +13,8 @@
 %% API
 -export([
          start_link/0
-         , start_link/1
+         , ping_spawn/0
+         , ping_spawn/1
          , ping/0
          , ping/1
          , do/2
@@ -27,7 +28,7 @@
 -define(SERVER, ?MODULE). 
 -define(TIMEOUT,1000).
 
--record(state,{function}).
+-record(state,{}).
 
 %%%===================================================================
 %%% API
@@ -43,20 +44,19 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-start_link(stand_alone) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [stand_alone], []).
+ping_spawn() ->
+    ping_spawn(node()).
+
+ping_spawn(Node) ->
+    {ok, Tag} = gen_server:call({?SERVER, Node}, ping_spawn),
+    get_answer(Tag).
 
 ping() ->
     ping(node()).
 
 ping(Node) ->
     {ok, Tag} = gen_server:call({?SERVER, Node}, ping),
-    receive
-        Tag -> pong;
-        _ -> pang
-    after
-        ?TIMEOUT -> pang_timeout
-    end.
+    get_answer(Tag).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -74,28 +74,12 @@ ping(Node) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    Fun = fun(Pid, Tag) -> master_task_manager:add_atom_task(
-                             ping_pong_atom, rand_do, [Pid, Tag],
-                             [{comment, "It's real erlang ping pong"}
-                              , {restart, {transient, 4, 2000}}
-                             ]) end,
-    {ok, #state{function = Fun}};
-init([stand_alone]) ->
-    Fun = fun(Pid, Tag) -> spawn(ping_pong_atom, do, [Pid, Tag])
-          end,
-    {ok, #state{function = Fun}}.
-
-do(From, Tag) ->
-    From ! Tag.
-
-rand_do(From, Tag) ->
-    % random error
-    {_,_,Micro} = now(),
-    if Micro rem 10 < 8 -> erlang:error("I want this error.");
-       true -> ok
-    end,
-    From ! Tag.
-    
+    % Fun = fun(Pid, Tag) -> master_task_manager:add_atom_task(
+    %                          ping_pong_atom, rand_do, [Pid, Tag],
+    %                          [{comment, "It's real erlang ping pong"}
+    %                           , {restart, {transient, 4, 2000}}
+    %                          ]) end,
+    {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -111,13 +95,36 @@ rand_do(From, Tag) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(ping, {Pid, Tag}, #state{function = Fun} = State) ->
-    Fun(Pid, Tag),
+handle_call(ping_spawn, {Pid, Tag}, State) ->
+    spawn(ping_pong_atom,do,[Pid,Tag]),
     Reply = {ok, Tag},
     {reply, Reply, State};
+
+handle_call(ping, {Pid, Tag}, State) ->
+    master_task_manager:add_atom_task(
+      ping_pong_atom, rand_do, [Pid, Tag],
+      [{comment, "It's real erlang ping pong"}
+       , {restart, {transient, 4, 2000}}
+      ]),
+    Reply = {ok, Tag},
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
+
+
+
+do(From, Tag) ->
+    From ! Tag.
+
+rand_do(From, Tag) ->
+    % random error
+    {_,_,Micro} = now(),
+    if Micro rem 10 < 8 -> erlang:error("I want this error.");
+       true -> ok
+    end,
+    From ! Tag.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -173,3 +180,11 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+get_answer(Tag) ->
+    receive
+        Tag -> pong;
+        _ -> pang
+    after
+        ?TIMEOUT -> pang_timeout
+    end.

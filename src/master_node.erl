@@ -112,7 +112,7 @@ init([undefined]) ->
 
 init([_FromNode]) ->
     % Start new master node in cluster
-    remove_down_node_and_clean_db(),
+    remove_down_node_and_clean_mnesia(),
     [] = pool:start(cluster_pool),
     Nodes = [N || N <- table_to_list(node),
                   lists:member(N, [node()|nodes()])],
@@ -199,7 +199,7 @@ handle_cast(Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({nodedown, DownNode}, State) ->
     io:format("Nodedown: ~p~n", [DownNode]),
-    clean_db(DownNode),
+    clean_mnesia(DownNode),
     {noreply, State};
 
 handle_info(Info, State) ->
@@ -298,35 +298,36 @@ copy_table(_) -> ok.
 
 
 
-remove_down_node_and_clean_db() ->
+remove_down_node_and_clean_mnesia() ->
+    % fixme Need to add a check for atom task
     Nodes = [N || N <- table_to_list(node),
                   lists:member(N, [node()|nodes()])],
-    Q1 = qlc:q([begin
-                    mnesia:delete_object(N),
-                    N#node.address
-                end || N <- mnesia:table(node),
-                       not lists:member(N#node.address, Nodes)]),
-    Q2 = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
-    {atomic, _} = transaction(fun() ->
-                                      DownNode = qlc:eval(Q1),
-                                      UsedModule = qlc:eval(Q2),
-                                      [catch qlc:eval(M:clean(DownNode))
-                                       || M <- UsedModule]
+    % get and delete from mnesia all disconnected nodes
+    Q = qlc:q([begin
+                   mnesia:delete_object(N),
+                   N#node.address
+               end || N <- mnesia:table(node),
+                      not lists:member(N#node.address, Nodes)]),
+    {atomic, _} = transaction(fun() -> DownNode = qlc:eval(Q),
+                                       m_clean_user_tables(DownNode)
                               end).
 
-
-
-clean_db(DownNode) ->
-    Q = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
-    transaction(fun() ->
-                        mnesia:delete({node, DownNode}),
-                        UsedModule = qlc:eval(Q),
-                        [catch qlc:eval(M:clean([DownNode]))
-                         || M <- UsedModule]
+clean_mnesia(DownNode) ->
+    % fixme Need to add a check for atom task
+    restart_atom_task([DownNode]),
+    transaction(fun() -> mnesia:delete({node, DownNode}),
+                         m_clean_user_tables([DownNode])
                 end).
 
+m_clean_user_tables(DownNode) ->
+    Q = qlc:q([M || #used_module{name = M} <- mnesia:table(used_module)]),
+    UsedModule = qlc:eval(Q),
+    [catch qlc:eval(M:clean(DownNode)) || M <- UsedModule].
 
+restart_atom_task(DownNode) ->
+    ok.
 
+    
 table_to_list(Table) ->
     {atomic, List} =
         transaction(
