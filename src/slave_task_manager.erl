@@ -91,10 +91,10 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({add_atom_task, #atom_task{mfa={M,F,A}
-              } = Task}, _From, State) ->
+                                      } = Task}, _From, State) ->
+    io:format("slave_task add_atom_task~n"),
     Pid = spawn_link(M,F,A),
     ets:insert(slave_atom_task, {Pid, Task}),
-    io:format("Get ping~n"),
     Reply = ok,
     {reply, Reply, State};
 
@@ -144,43 +144,25 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({'EXIT', From, normal} = Msg, State) ->
+    io:format("slave_task EXIT normal~n"),
     Task = get_task(From),
-    io:format("Slave task manafer from task normal: ~p~n",[Task]),
     resend_exit_msg(Msg, Task),
     case Task of
-        #atom_task{restart = {permanent, MaxR, MaxT}
-                   , history = History} ->
-            TimeLine = get_time_line(MaxT),
-            History1 = [H || H <- History, TimeLine > H],
-            if length(History1) >= MaxR ->
-                    master_task_manager:stop_atom_task(
-                      Task#atom_task{history = History1});
-               true ->
-                    master_task_manager:restart_atom_task(
-                      Task#atom_task{history = History1})
-            end;
+        #atom_task{restart = {permanent, _, _}} ->
+            restart_or_stop_atom_task(Task);
         _ -> master_task_manager:stop_atom_task(Task)
     end,
     {noreply, State};
 
 handle_info({'EXIT', From, _} = Msg, State) ->
+    io:format("slave_task EXIT abnormal~n"),
     Task = get_task(From),
-    io:format("Slave task manafer from task abnormal: ~p~n",[Task]),
     resend_exit_msg(Msg, Task),
     case Task of
         #atom_task{restart = temporary} ->
             master_task_manager:stop_atom_task(Task);
-        #atom_task{restart = {_, MaxR, MaxT}
-                   , history = History} ->
-            TimeLine = get_time_line(MaxT),
-            History1 = [H || H <- History, TimeLine > H],
-            if length(History1) >= MaxR ->
-                    master_task_manager:stop_atom_task(
-                      Task#atom_task{history = History1});
-               true ->
-                    master_task_manager:restart_atom_task(
-                      Task#atom_task{history = History1})
-            end
+        #atom_task{restart = {_,_,_}} ->
+            restart_or_stop_atom_task(Task)
     end,
     {noreply, State};
 
@@ -188,10 +170,24 @@ handle_info(Info, State) ->
     io:format("Slave task manafer info message: ~p~n",[Info]),
     {noreply, State}.
 
+restart_or_stop_atom_task(#atom_task{restart = {_, MaxR, MaxT}
+                                     , history = History
+                                    } = Task) ->
+    TimeLine = get_time_line(MaxT),
+    History1 = [H || H <- History, TimeLine < H],
+    io:format(" ~p; History before and after:~n~p~n~p~n",
+              [TimeLine,History,History1]),
+    if length(History1) >= MaxR ->
+            master_task_manager:stop_atom_task(
+              Task#atom_task{history = History1});
+       true ->
+            master_task_manager:restart_atom_task(
+              Task#atom_task{history = History1})
+    end.
+
 get_time_line(MaxT) ->
     {T,M,S} = now(),
-    timer:hms(T,M,S) - MaxT.
-
+    round(timer:hms(T,M,S)/1000) - MaxT.
 
 get_task(From) ->
     [{_, Task}] = ets:lookup(slave_atom_task, From),
