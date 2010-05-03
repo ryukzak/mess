@@ -20,6 +20,7 @@
          , add_atom_task/4
          , restart_atom_task/1
          , stop_atom_task/1
+         , node_down/1
         ]).
 
 %% gen_server callbacks
@@ -67,6 +68,9 @@ restart_atom_task(Task) ->
 
 stop_atom_task(Task) ->
     gen_server:cast({global, ?SERVER}, {stop_atom_task, Task}).
+
+node_down(NodeDown) ->
+    gen_server:cast({global, ?SERVER}, {node_down, NodeDown}).
 
 reset_task() -> gen_server:call({global, ?SERVER}, reset_task).
 
@@ -170,6 +174,15 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({node_down, NodeDown}, State) ->
+    io:format("master_task_manager:node_down ~p~n",[NodeDown]),
+    Q = qlc:q([master_task_manager:restart_atom_task(T)
+               || #atom_task{run_on_node = N } = T
+                      <- mnesia:table(atom_task),
+                  lists:member(N, NodeDown)]),
+    {atomic,_} = mnesia:transaction(fun() -> qlc:eval(Q) end),
+    {noreply, State};
+
 handle_cast({restart_atom_task, #atom_task{history=History
                                           } = Task}, State) ->
     io:format("master_task restart_atom_task~n"),
