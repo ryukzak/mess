@@ -299,7 +299,6 @@ copy_table(_) -> ok.
 
 
 remove_down_node_and_clean_mnesia() ->
-    % fixme Need to add a check for atom task
     Nodes = [N || N <- table_to_list(node),
                   lists:member(N, [node()|nodes()])],
     % get and delete from mnesia all disconnected nodes
@@ -308,13 +307,15 @@ remove_down_node_and_clean_mnesia() ->
                    N#node.address
                end || N <- mnesia:table(node),
                       not lists:member(N#node.address, Nodes)]),
-    {atomic, _} = transaction(fun() -> DownNode = qlc:eval(Q),
-                                       m_clean_user_tables(DownNode)
-                              end).
+    {atomic, _} =
+        transaction(fun() -> DownNode = qlc:eval(Q),
+                             master_task_manager:node_down([DownNode]),
+                             m_clean_user_tables(DownNode)
+                    end).
 
 clean_mnesia(DownNode) ->
+    master_task_manager:node_down([DownNode]),
     % fixme Need to add a check for atom task
-    restart_atom_task([DownNode]),
     transaction(fun() -> mnesia:delete({node, DownNode}),
                          m_clean_user_tables([DownNode])
                 end).
@@ -324,10 +325,6 @@ m_clean_user_tables(DownNode) ->
     UsedModule = qlc:eval(Q),
     [catch qlc:eval(M:clean(DownNode)) || M <- UsedModule].
 
-restart_atom_task(DownNode) ->
-    ok.
-
-    
 table_to_list(Table) ->
     {atomic, List} =
         transaction(

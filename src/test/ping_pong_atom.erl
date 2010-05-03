@@ -17,7 +17,10 @@
          , ping_spawn/1
          , ping/0
          , ping/1
+         , ping_sleep/0
+         , ping_sleep/1
          , do/2
+         , sleep_do/2
          , rand_do/2
         ]).
 
@@ -27,6 +30,7 @@
 
 -define(SERVER, ?MODULE). 
 -define(TIMEOUT,1000).
+-define(SLEEP,10000).
 
 -record(state,{}).
 
@@ -58,6 +62,18 @@ ping(Node) ->
     {ok, Tag} = gen_server:call({?SERVER, Node}, ping),
     get_answer(Tag).
 
+ping_sleep() ->
+    ping_sleep(node()).
+
+ping_sleep(Node) ->
+    {ok, Tag} = gen_server:call({?SERVER, Node}, ping_sleep),
+    receive
+        Tag -> pong;
+        Emm -> {pang, Emm}
+    after
+        ?SLEEP*3 -> pang_timeout
+    end.
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -74,11 +90,6 @@ ping(Node) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    % Fun = fun(Pid, Tag) -> master_task_manager:add_atom_task(
-    %                          ping_pong_atom, rand_do, [Pid, Tag],
-    %                          [{comment, "It's real erlang ping pong"}
-    %                           , {restart, {transient, 4, 2000}}
-    %                          ]) end,
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -109,6 +120,15 @@ handle_call(ping, {Pid, Tag}, State) ->
     Reply = {ok, Tag},
     {reply, Reply, State};
 
+handle_call(ping_sleep, {Pid, Tag}, State) ->
+    master_task_manager:add_atom_task(
+      ping_pong_atom, sleep_do, [Pid, Tag],
+      [{comment, "It's real erlang ping pong"}
+       , {restart, {transient, 4, 2000}}
+      ]),
+    Reply = {ok, Tag},
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -118,10 +138,14 @@ handle_call(_Request, _From, State) ->
 do(From, Tag) ->
     From ! Tag.
 
+sleep_do(From, Tag) ->
+    timer:sleep(?SLEEP),
+    From ! Tag.
+
 rand_do(From, Tag) ->
     % random error
     {_,_,Micro} = now(),
-    if Micro rem 10 < 8 -> erlang:error("I want this error.");
+    if Micro rem 10 < 1 -> erlang:error("I want this error.");
        true -> ok
     end,
     From ! Tag.
