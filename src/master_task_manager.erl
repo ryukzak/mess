@@ -62,11 +62,11 @@ add_atom_task(M, F, A, Option) ->
                                        }, Option),
     gen_server:call({global, ?SERVER}, {add_atom_task, Task}).
 
-restart_atom_task(_Task) ->
-    ok.
+restart_atom_task(Task) ->
+    gen_server:call({global, ?SERVER}, {restart_atom_task, Task}).
 
-stop_atom_task(_Task) ->
-    ok.
+stop_atom_task(Task) ->
+    gen_server:call({global, ?SERVER}, {stop_atom_task, Task}).
 
 reset_task() -> gen_server:call({global, ?SERVER}, reset_task).
 
@@ -119,22 +119,36 @@ handle_call({add_local_task, #local_task{mfa={M,_,_}
     {reply, {ok, Reply}, State};
 
 handle_call({add_atom_task, #atom_task{mfa={M,_,_}
-                                       , node=Node
                                       } = Task0}, _From, State) ->
     % get from module with this task table list.
     NecessaryTables = necessary_task_table(M),
-    RunOnNode = case Node of
-                    undefined -> pool:get_node();
-                    _ -> Node
-                end,
+    Node = get_node_to_run(Task0),
     {Task, TablesCreateFunction} =
         mnesia_add_atom_task(NecessaryTables,
-                             Task0#atom_task{run_on_node = RunOnNode}),
+                             Task0#atom_task{run_on_node = Node}),
     create_necessary_table(TablesCreateFunction),
     slave_task_manager:add_atom_task(Task),
     Reply = ok,
     {reply, Reply, State};
 
+handle_call({restart_atom_task, #atom_task{history=History
+                                          } = Task}, _From, State) ->
+    Node = get_node_to_run(Task),
+    Task1 =  Task#atom_task{history = [now()|History]
+                            , run_on_node = Node
+                           },
+    Fun = fun() -> mnesia:write(Task1) end,
+    {atomic, _} = mnesia:transaction(Fun),
+    slave_task_manager:add_atom_task(Task),
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({stop_atom_task, #atom_task{id=Id
+                                       } = _Task}, _From, State) ->
+    Fun = fun() -> mnesia:delete({atom_task, Id}) end,
+    {atomic,ok} = mnesia:transaction(Fun),
+    Reply = ok,
+    {reply, Reply, State};
 
 handle_call(get_local_task, _From, State) ->
     Q = qlc:q([{M, F, A
@@ -288,3 +302,10 @@ parse_atom_option(T, [O|Os]) ->
     parse_atom_option(T2, Os);
 
 parse_atom_option(T, []) -> T.
+
+
+get_node_to_run(#atom_task{node=Node}) ->
+    case Node of
+        undefined -> pool:get_node();
+        _ -> Node
+    end.
