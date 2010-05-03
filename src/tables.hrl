@@ -3,29 +3,29 @@
 -record(tables,{name, nil}). % type :: simple | node_depended
 
 % used to clean mnesia, when some of the nodes are disconnected (in
-% master_node module)
+% master_node module). Also may be used to stop some task (not in this
+% version).
 -record(used_module,{name, nil}).
 
--record(local_task, {id, m, f, a, comment}).
+-record(local_task, {id, mfa, comment}).
 
--record(atom_task, {id % auto
-                    , restart = transient
-                    , maxR = 4
-                    , maxT = 2000
-                    , currentR = 0 % auto
-                    , node 
-                    , run_on_node % auto
-                    , from % auto
-                    , exit_msg
-                    , m, f, a, comment}).
+-record(atom_task, {id               % auto
+                    , history = []   % auto
+                    , run_on_node    % auto
+                    , from           % auto
+                    , restart = {transient, 4, 2000}
+                    , node
+                    , link = false
+                    , mfa
+                    , comment
+                   }).
 
 % all row with tag "auto" add automatical
-
-% restart :: permanent (always restart) | temporary (not restart) |
-% transient (restart only if exit reason abnormaly)
+% restart :: {permanent, maxR, maxT} (always restart) | temporary (not
+% restart) | {transient, maxR, maxT} (restart only if exit reason
+% abnormaly)
 % node :: Node
 % from :: Pid
-% exit_msg :: subscribe | undefined
-% maxR, maxT
+% link :: bool()
 
 -record(global_task, {}).

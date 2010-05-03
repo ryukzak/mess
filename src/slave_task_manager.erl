@@ -13,7 +13,7 @@
 %% API
 -export([
          start_link/0
-         , add_local_task/4
+         , add_local_task/2
          , start_all_local_task/0
          , reset_task/1
          , add_atom_task/1
@@ -44,11 +44,11 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 add_atom_task(#atom_task{run_on_node = Node} = Task) ->
-    get_server:call({?SERVER, Node}, {add_atom_task, Task}).
+    gen_server:call({?SERVER, Node}, {add_atom_task, Task}).
 
-add_local_task(Node, M, F, A) ->
+add_local_task(Node, Task) ->
     gen_server:call({?SERVER, Node},
-                    {add_local_task, M, F, A}).
+                    {add_local_task, Task}).
 
 start_all_local_task() ->
     gen_server:call(?SERVER, start_all_local_task).
@@ -71,6 +71,9 @@ reset_task(Node) -> gen_server:call({?SERVER, Node}, reset_task).
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
+    ets:new(slave_atom_task, [public, named_table, {heir,none}]),
+
+    process_flag(trap_exit, true),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -87,12 +90,16 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({add_atom_task, Task}, _From, State) ->
-    
+handle_call({add_atom_task, #atom_task{mfa={M,F,A}
+              } = Task}, _From, State) ->
+    Pid = spawn_link(M,F,A),
+    ets:insert(slave_atom_task, {Pid, Task}),
+    io:format("Get ping~n"),
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({add_local_task, M, F, A}, _From, State) ->
+handle_call({add_local_task, #local_task{mfa={M,F,A}
+                                        }}, _From, State) ->
     % async start task proccess.
     SupResult = local_task_sup:start_child(M, F, A),
     Reply = {ok, M, F, A, SupResult},
@@ -136,9 +143,68 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(_Info, State) ->
+handle_info({'EXIT', From, normal} = Msg, State) ->
+    Task = get_task(From),
+    io:format("Slave task manafer from task normal: ~p~n",[Task]),
+    resend_exit_msg(Msg, Task),
+    case Task of
+        #atom_task{restart = {permanent, MaxR, MaxT}
+                   , history = History} ->
+            TimeLine = get_time_line(MaxT),
+            History1 = [H || H <- History, TimeLine > H],
+            if length(History1) >= MaxR ->
+                    master_task_manager:stop_atom_task(
+                      Task#atom_task{history = History1});
+               true ->
+                    master_task_manager:restart_atom_task(
+                      Task#atom_task{history = History1})
+            end;
+        _ -> master_task_manager:stop_atom_task(Task)
+    end,
+    {noreply, State};
+
+handle_info({'EXIT', From, _} = Msg, State) ->
+    Task = get_task(From),
+    io:format("Slave task manafer from task abnormal: ~p~n",[Task]),
+    resend_exit_msg(Msg, Task),
+    case Task of
+        #atom_task{restart = temporary} ->
+            master_task_manager:stop_atom_task(Task);
+        #atom_task{restart = {_, MaxR, MaxT}
+                   , history = History} ->
+            TimeLine = get_time_line(MaxT),
+            History1 = [H || H <- History, TimeLine > H],
+            if length(History1) >= MaxR ->
+                    master_task_manager:stop_atom_task(
+                      Task#atom_task{history = History1});
+               true ->
+                    master_task_manager:restart_atom_task(
+                      Task#atom_task{history = History1})
+            end
+    end,
+    {noreply, State};
+
+handle_info(Info, State) ->
+    io:format("Slave task manafer info message: ~p~n",[Info]),
     {noreply, State}.
 
+get_time_line(MaxT) ->
+    {T,M,S} = now(),
+    timer:hms(T,M,S) - MaxT.
+
+
+get_task(From) ->
+    [{_, Task}] = ets:lookup(slave_atom_task, From),
+    ets:delete(slave_atom_task, From),
+    Task.
+
+resend_exit_msg(Msg, Task) ->
+    case Task of
+        #atom_task{link=true
+                   , from = Pid} -> Pid ! Msg;
+        _ -> ok
+    end.
+    
 %%--------------------------------------------------------------------
 %% @private
 %% @doc

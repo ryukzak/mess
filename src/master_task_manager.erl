@@ -18,6 +18,8 @@
          , get_local_task/0
          , reset_task/0
          , add_atom_task/4
+         , restart_atom_task/1
+         , stop_atom_task/1
         ]).
 
 %% gen_server callbacks
@@ -50,17 +52,21 @@ add_local_task(M, F, A) ->
 
 add_local_task(M, F, A, Comment) ->
     gen_server:call({global, ?SERVER},
-                    {add_local_task, #local_task{m=M
-                                                 , f=F
-                                                 , a=A
+                    {add_local_task, #local_task{mfa={M,F,A}
                                                  , comment=Comment
                                                 }}).
 
 add_atom_task(M, F, A, Option) ->
-    Task = parse_atom_option(#atom_task{m = M, f = F, a = A
+    Task = parse_atom_option(#atom_task{mfa = {M,F,A}
                                         , from = self()
                                        }, Option),
     gen_server:call({global, ?SERVER}, {add_atom_task, Task}).
+
+restart_atom_task(_Task) ->
+    ok.
+
+stop_atom_task(_Task) ->
+    ok.
 
 reset_task() -> gen_server:call({global, ?SERVER}, reset_task).
 
@@ -98,10 +104,7 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-% handle_call({add_local_task, M, F, A, Comment}, _From, State) ->
-handle_call({add_local_task, #local_task{m=M
-                                         , f=F
-                                         , a=A
+handle_call({add_local_task, #local_task{mfa={M,_,_}
                                         } = Task}, _From, State) ->
     % get from module with this task table list.
     NecessaryTables = necessary_task_table(M),
@@ -111,32 +114,31 @@ handle_call({add_local_task, #local_task{m=M
 
     create_necessary_table(TablesCreateFunction),
 
-    Reply = [{N, slave_task_manager:add_local_task(N, M, F, A)}
+    Reply = [{N, slave_task_manager:add_local_task(N, Task)}
              || N <- Nodes],
     {reply, {ok, Reply}, State};
 
-handle_call({add_atom_task, #atom_task{m=M
-                                      , node=Node} = Task}, _From, State) ->
+handle_call({add_atom_task, #atom_task{mfa={M,_,_}
+                                       , node=Node
+                                      } = Task0}, _From, State) ->
     % get from module with this task table list.
     NecessaryTables = necessary_task_table(M),
     RunOnNode = case Node of
                     undefined -> pool:get_node();
                     _ -> Node
                 end,
-    TablesCreateFunction =
+    {Task, TablesCreateFunction} =
         mnesia_add_atom_task(NecessaryTables,
-                             Task#atom_task{run_on_node = RunOnNode}),
+                             Task0#atom_task{run_on_node = RunOnNode}),
     create_necessary_table(TablesCreateFunction),
-    slave_task_manager:add_atom_task(),
+    slave_task_manager:add_atom_task(Task),
     Reply = ok,
     {reply, Reply, State};
 
 
 handle_call(get_local_task, _From, State) ->
-    Q = qlc:q([{T#local_task.m
-                , T#local_task.f
-                , T#local_task.a
-               } || T <- mnesia:table(local_task)]),
+    Q = qlc:q([{M, F, A
+               } || #local_task{mfa={M,F,A}} <- mnesia:table(local_task)]),
     {atomic, MFAs} = mnesia:transaction(fun() -> qlc:eval(Q) end),
     Reply = {ok, MFAs},
     {reply, Reply, State};
@@ -230,7 +232,7 @@ create_necessary_table(TablesCreateFunction) ->
 
 
 
-mnesia_add_local_task(NecessaryTables, #local_task{m=M
+mnesia_add_local_task(NecessaryTables, #local_task{mfa={M,_,_}
                                                   } = Task) ->
     Q1 = q_nodes(),
     Q2 = q_create_necessary_table_function(NecessaryTables),
@@ -244,8 +246,16 @@ mnesia_add_local_task(NecessaryTables, #local_task{m=M
 
 
 
-mnesia_add_atom_task(_NecessaryTables, _Task) ->
-    undefined.
+mnesia_add_atom_task(NecessaryTables, #atom_task{mfa={M,_,_}} = Task0) ->
+    Q = q_create_necessary_table_function(NecessaryTables),
+    Fun = fun() -> NextValue = util:next_value(atom_task),
+                   Task = Task0#atom_task{id = NextValue},
+                   mnesia:write(#used_module{name = M}),
+                   mnesia:write(Task),
+                   {Task, qlc:eval(Q)}
+          end,
+    {atomic, {Task, TablesCreateFunction}} = mnesia:transaction(Fun),
+    {Task, TablesCreateFunction}.
 
 
 q_nodes() ->
@@ -271,15 +281,9 @@ q_create_necessary_table_function(NecessaryTables) ->
 parse_atom_option(T, [O|Os]) ->
     T2 = case O of
              {comment, Comment} -> T#atom_task{comment = Comment};
-             {exit_msg, subscribe} -> T#atom_task{exit_msg = subscribe};
-             {exit_msg, undefined} -> T#atom_task{exit_msg = undefined};
-             {node, undefined} -> T#atom_task{node = undefined};
-             {node, Node} -> T#atom_task{node = Node};
-             {maxT, MaxT} -> T#atom_task{maxT = MaxT};
-             {maxR, MaxR} -> T#atom_task{maxR = MaxR};
-             {restart, permanent} -> T#atom_task{restart = permanent};
-             {restart, temporary} -> T#atom_task{restart = temporary};
-             {restart, transient} -> T#atom_task{restart = transient}
+             {link, Value} -> T#atom_task{link = Value};
+             {node, Value} -> T#atom_task{node = Value};
+             {restart, Value} -> T#atom_task{restart = Value}
          end,
     parse_atom_option(T2, Os);
 

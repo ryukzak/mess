@@ -17,7 +17,7 @@
          , i_get_table/1
          , i_get_table_size/1
          , i_where/0
-         , i_tables/0
+          , i_tables/0
          , i_nodes/0
          , i_local_task/0
          , i_counter/0

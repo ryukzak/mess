@@ -16,6 +16,8 @@
          , start_link/1
          , ping/0
          , ping/1
+         , do/2
+         , rand_do/2
         ]).
 
 %% gen_server callbacks
@@ -73,13 +75,9 @@ ping(Node) ->
 %%--------------------------------------------------------------------
 init([]) ->
     Fun = fun(Pid, Tag) -> master_task_manager:add_atom_task(
-                             ping_pong_atom, do, [Pid, Tag],
+                             ping_pong_atom, rand_do, [Pid, Tag],
                              [{comment, "It's real erlang ping pong"}
-                              , {node, undefined}
-                              , {restart, transient}
-                              , {maxT, 2000}
-                              , {maxR, 4}
-                              , {exit_msg, undefined}
+                              , {restart, {transient, 4, 2000}}
                              ]) end,
     {ok, #state{function = Fun}};
 init([stand_alone]) ->
@@ -89,6 +87,16 @@ init([stand_alone]) ->
 
 do(From, Tag) ->
     From ! Tag.
+
+rand_do(From, Tag) ->
+    % random error
+    {_,_,Micro} = now(),
+    if Micro rem 10 < 4 ->
+            io:format("Process error: ~p~n", Tag);
+       true -> ok
+    end,
+    From ! Tag.
+    
 
 %%--------------------------------------------------------------------
 %% @private
