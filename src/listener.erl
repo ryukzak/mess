@@ -1,11 +1,11 @@
-%%%-----------------------------------------------------------------------------
+%%%-------------------------------------------------------------------
 %%% @author Ryukzak Neskazov <>
 %%% @copyright (C) 2010, Ryukzak Neskazov
 %%% @doc
 %%%
 %%% @end
 %%% Created :  2 Mar 2010 by Ryukzak Neskazov <>
-%%%-----------------------------------------------------------------------------
+%%%-------------------------------------------------------------------
 -module(listener).
 
 -export([start/3
@@ -15,9 +15,9 @@
 
 -record(state,{name, lsock, mod}).
 
-%%%=============================================================================
+%%%===================================================================
 %%% API
-%%%=============================================================================
+%%%===================================================================
 
 start(Name, Port, Mod) ->
     error_logger:info_msg("Listener start link: ~p~n", [{Name, Port, Mod}]),
@@ -30,9 +30,9 @@ start(Name, Port, Mod) ->
 stop(Name) ->
     Name ! stop.
 
-%%%=============================================================================
+%%%===================================================================
 %%% Internal
-%%%=============================================================================
+%%%===================================================================
 
 loop(#state{lsock = LSock, name = _Name, mod = Mod} = State) ->
     case gen_tcp:accept(LSock, 500) of
@@ -47,9 +47,10 @@ loop(#state{lsock = LSock, name = _Name, mod = Mod} = State) ->
     receive
         stop -> gen_tcp:close(LSock),
                 error_logger:info_msg("Listener was stopped~n");
-        X -> error_logger:warning_msg("Clerk listener get unknown message: ~p",
-                                      [X]),
-             loop(State)
+        X ->
+						error_logger:warning_msg("Clerk listener get unknown message: ~p",
+																		 [X]),
+						loop(State)
     after
         0 -> loop(State)
     end.

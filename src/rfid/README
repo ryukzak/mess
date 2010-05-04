@@ -16,8 +16,8 @@ Request for reconnect RFID reader to cluster. This may be need for cluster recon
 > reconnect
 
 RFID reader message. Send at event in a world.
-> here MID
-> unhere MID
+> found MID
+> lost MID
 
 Terminal to cluster request:
 > where MID

@@ -1,1 +1,0 @@
-erl -pa ebin -newshell -env TERM vt100 -sname emacs
