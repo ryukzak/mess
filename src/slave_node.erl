@@ -15,6 +15,7 @@
          start_link/0
          , connect/0
          , connect/1
+         , get_ip/1
         ]).
 
 %% gen_server callbacks
@@ -55,6 +56,9 @@ connect() ->
     ok = application:start(slave_node),
     ok = slave_task_manager:start_all_local_task().
 
+get_ip(Node) ->
+    gen_server:call({?SERVER, Node}, get_ip).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -89,6 +93,16 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(get_ip, _From, State) ->
+    IP = case inet:ifget("eth0", [addr]) of
+             {ok,[{addr,IP1}]} -> IP1;
+             {ok,[]} -> case inet:ifget("lo", [addr]) of
+                            {ok,[{addr,IP1}]} -> IP1
+                        end
+         end,
+    Reply = {ok, inet_parse:ntoa(IP)},
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.

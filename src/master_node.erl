@@ -17,11 +17,13 @@
          , i_get_table/1
          , i_get_table_size/1
          , i_where/0
-          , i_tables/0
+         , i_tables/0
          , i_nodes/0
          , i_local_task/0
          , i_counter/0
          , i_used_module/0
+         , get_node/0
+         , get_node_ip/0
         ]).
 
 %% gen_server callbacks
@@ -41,34 +43,8 @@
 %%% API
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Starts the server
-%%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
 start_link(FromNode) ->
     gen_server:start_link({global, ?SERVER}, ?MODULE, [FromNode], []).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Get node address, where_is master_node.
-%%
-%% @spec where() -> {ok, node()} | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
-i_where() ->
-    gen_server:call({global, ?SERVER}, where).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Connect process to master node. It's should be a slave_node. Also
-%% master_node monitoring slave node and conversely.
-%%
-%% @spec connect() -> ok | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
 
 connect() ->
     {ok, MasterNode} = master_node:i_where(),
@@ -80,11 +56,15 @@ i_get_table(Table) -> gen_server:call({global, ?SERVER}, {get_table, Table}).
 i_get_table_size(Table) ->
     gen_server:call({global, ?SERVER}, {get_table_size, Table}).
 
+i_where() ->       gen_server:call({global, ?SERVER}, where).
 i_tables() ->      gen_server:call({global, ?SERVER}, tables).
 i_nodes() ->       gen_server:call({global, ?SERVER}, nodes).
 i_local_task() ->  gen_server:call({global, ?SERVER}, local_task).
 i_counter() ->     gen_server:call({global, ?SERVER}, counter).
 i_used_module() -> gen_server:call({global, ?SERVER}, used_module).
+get_node() ->      gen_server:call({global, ?SERVER}, get_node).
+get_node_ip() ->   gen_server:call({global, ?SERVER}, get_node_ip).
+
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -168,6 +148,14 @@ handle_call({get_table, Table}, _From, State) ->
 
 handle_call({get_table_size, Table}, _From, State) ->
     {reply, {ok, mnesia:table_info(Table, size)}, State};
+
+handle_call(get_node, _From, State) ->
+    {reply, pool:get_node(), State};
+
+handle_call(get_node_ip, _From, State) ->
+    Node = pool:get_node(),
+    {ok, IP} = slave_node:get_ip(Node),
+    {reply, IP, State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
