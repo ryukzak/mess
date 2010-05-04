@@ -30,7 +30,7 @@
 
 -define(SERVER, ?MODULE). 
 -define(TIMEOUT,1000).
--define(SLEEP,10000).
+-define(SLEEP,2000).
 
 -record(state,{}).
 
