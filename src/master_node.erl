@@ -309,7 +309,11 @@ remove_down_node_and_clean_mnesia() ->
                       not lists:member(N#node.address, Nodes)]),
     {atomic, _} =
         transaction(fun() -> DownNode = qlc:eval(Q),
-                             master_task_manager:node_down([DownNode]),
+                             spawn(fun() ->
+                                           timer:sleep(500),
+                                           master_task_manager:node_down(
+                                             DownNode)
+                                           end),
                              m_clean_user_tables(DownNode)
                     end).
 

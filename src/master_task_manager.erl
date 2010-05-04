@@ -70,7 +70,9 @@ stop_atom_task(Task) ->
     gen_server:cast({global, ?SERVER}, {stop_atom_task, Task}).
 
 node_down(NodeDown) ->
-    gen_server:cast({global, ?SERVER}, {node_down, NodeDown}).
+    io:format("master_task_manager:node_down(~p)~n",[NodeDown]),
+    Ok = gen_server:cast({global, ?SERVER}, {node_down, NodeDown}),
+    io:format("master_task_manager:node_down result: ~p~n",[Ok]).
 
 reset_task() -> gen_server:call({global, ?SERVER}, reset_task).
 
@@ -92,6 +94,7 @@ get_local_task() -> gen_server:call({global, ?SERVER}, get_local_task).
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
+    io:format("Init master task manager.~n"),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -128,14 +131,15 @@ handle_call({add_atom_task, #atom_task{mfa={M,_,_}
     io:format("master_task add_atom_task~n"),
     % get from module with this task table list.
     NecessaryTables = necessary_task_table(M),
-    Node = get_node_to_run(Task0),
-    {Task, TablesCreateFunction} =
-        mnesia_add_atom_task(NecessaryTables,
-                             Task0#atom_task{run_on_node = Node}),
-    create_necessary_table(TablesCreateFunction),
-    slave_task_manager:add_atom_task(Task),
-    Reply = ok,
-    {reply, Reply, State};
+    case get_node_to_run(Task0) of
+        error -> {reply, error, State};
+        Node -> {Task, TablesCreateFunction} =
+                    mnesia_add_atom_task(NecessaryTables,
+                                         Task0#atom_task{run_on_node = Node}),
+                create_necessary_table(TablesCreateFunction),
+                slave_task_manager:add_atom_task(Task),
+                {reply, ok, State}
+    end;
 
 handle_call(get_local_task, _From, State) ->
     Q = qlc:q([{M, F, A
@@ -145,7 +149,7 @@ handle_call(get_local_task, _From, State) ->
     {reply, Reply, State};
 
 handle_call(reset_task, _From, State) ->
-    Q1 = qlc:q([N || #node{address = N} <- mnesia:table(node)]),
+    Q1 = q_get_nodes(),
     Q2 = qlc:q([N || #tables{name = N} <- mnesia:table(tables)]),
     Fun = fun() -> {qlc:eval(Q1),qlc:eval(Q2)} end,
     {atomic,{Nodes,Tables}} = mnesia:transaction(Fun),
@@ -163,6 +167,9 @@ handle_call(reset_task, _From, State) ->
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
+
+q_get_nodes() ->
+    qlc:q([N#node.address || N <- mnesia:table(node)]).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -265,7 +272,7 @@ create_necessary_table(TablesCreateFunction) ->
 
 mnesia_add_local_task(NecessaryTables, #local_task{mfa={M,_,_}
                                                   } = Task) ->
-    Q1 = q_nodes(),
+    Q1 = q_get_nodes(),
     Q2 = q_create_necessary_table_function(NecessaryTables),
     Fun = fun() -> NextValue = util:next_value(local_task),
                    mnesia:write(#used_module{name = M}),
@@ -288,9 +295,6 @@ mnesia_add_atom_task(NecessaryTables, #atom_task{mfa={M,_,_}} = Task0) ->
     {atomic, {Task, TablesCreateFunction}} = mnesia:transaction(Fun),
     {Task, TablesCreateFunction}.
 
-
-q_nodes() ->
-    qlc:q([N#node.address || N <- mnesia:table(node)]).
 
 q_create_necessary_table_function(NecessaryTables) ->
     case mnesia:table_info(tables, size) of
@@ -325,5 +329,10 @@ get_node_to_run(#atom_task{node=Node}) ->
     % fixme Node may be disconnected.
     case Node of
         undefined -> pool:get_node();
-        _ -> Node
+        _ -> {atomic, Nodes} =
+                 mnesia:transaction(fun() -> qlc:eval(q_get_nodes()) end),
+             case lists:member(Node, Nodes) of
+                 true -> Node;
+                 false -> error
+             end
     end.
