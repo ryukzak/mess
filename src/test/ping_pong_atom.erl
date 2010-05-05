@@ -19,8 +19,11 @@
          , ping/1
          , ping_sleep/0
          , ping_sleep/1
+         , ping_load/0
+         , ping_load/1
          , do/2
          , sleep_do/2
+         , load_do/2
          , rand_do/2
         ]).
 
@@ -31,6 +34,8 @@
 -define(SERVER, ?MODULE). 
 -define(TIMEOUT,1000).
 -define(SLEEP,2000).
+-define(LOAD_SLEEP,10000).
+-define(LOAD,40).
 
 -record(state,{}).
 
@@ -72,6 +77,18 @@ ping_sleep(Node) ->
         Emm -> {pang, Emm}
     after
         ?SLEEP*3 -> pang_timeout
+    end.
+
+ping_load() ->
+    ping_load(node()).
+
+ping_load(Node) ->
+    {ok, Tag} = gen_server:call({?SERVER, Node}, ping_load),
+    receive
+        Tag -> pong;
+        Emm -> {pang, Emm}
+    after
+        ?LOAD_SLEEP -> pang_timeout
     end.
 
 %%%===================================================================
@@ -120,6 +137,15 @@ handle_call(ping, {Pid, Tag}, State) ->
     Reply = {ok, Tag},
     {reply, Reply, State};
 
+handle_call(ping_load, {Pid, Tag}, State) ->
+    master_task_manager:add_atom_task(
+      ping_pong_atom, load_do, [Pid, Tag],
+      [{comment, "It's real erlang ping pong"}
+       , {restart, {transient, 4, 2000}}
+      ]),
+    Reply = {ok, Tag},
+    {reply, Reply, State};
+
 handle_call(ping_sleep, {Pid, Tag}, State) ->
     master_task_manager:add_atom_task(
       ping_pong_atom, sleep_do, [Pid, Tag],
@@ -141,6 +167,14 @@ do(From, Tag) ->
 sleep_do(From, Tag) ->
     timer:sleep(?SLEEP),
     From ! Tag.
+
+load_do(From, Tag) ->
+    fib(?LOAD),
+    From ! Tag.
+
+fib(0) -> 1;
+fib(1) -> 1;
+fib(N) -> fib(N - 1) + fib(N - 2).
 
 rand_do(From, Tag) ->
     % random error
