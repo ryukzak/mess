@@ -91,9 +91,13 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({add_atom_task, #atom_task{mfa={M,F,A}
+                                       , type = Type
                                       } = Task}, _From, State) ->
     io:format("slave_task add_atom_task~n"),
-    Pid = spawn_link(M,F,A),
+    Pid = case Type of
+              function -> spawn_link(M,F,A);
+              otp -> {ok, P} = apply(M,F,A), P
+          end,
     ets:insert(slave_atom_task, {Pid, Task}),
     Reply = ok,
     {reply, Reply, State};

@@ -14,6 +14,7 @@
                     , run_on_node    % auto
                     , from           % auto
                     , restart = {transient, 4, 2000}
+                    , type = function
                     , node
                     , link = false
                     , mfa
@@ -24,6 +25,9 @@
 % restart :: {permanent, maxR, maxT} (always restart) | temporary (not
 % restart) | {transient, maxR, maxT} (restart only if exit reason
 % abnormaly)
+
+% type :: function (spawn mfa) | otp (apply function. Function must return {ok, Pid})
+
 % node :: Node
 % from :: Pid
 % link :: bool()
