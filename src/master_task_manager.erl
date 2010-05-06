@@ -317,6 +317,7 @@ parse_atom_option(T, [O|Os]) ->
     T2 = case O of
              {comment, Comment} -> T#atom_task{comment = Comment};
              {link, Value} -> T#atom_task{link = Value};
+             {type, Value} -> T#atom_task{type = Value};
              {node, Value} -> T#atom_task{node = Value};
              {restart, Value} -> T#atom_task{restart = Value}
          end,
