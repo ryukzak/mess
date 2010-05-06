@@ -12,7 +12,7 @@
 
 %% API
 -export([
-         start_link/1
+         start_link/2
          , parse/3
          , cast/2
          , tables/0
@@ -31,8 +31,8 @@
 %%% API
 %%%===================================================================
 
-start_link(Sock) ->
-    gen_server:start_link({?MODULE, Module}, Sock, []).
+start_link(Sock, Pid) ->
+    gen_server:start_link({?MODULE, Module}, {Sock, Pid}, []).
 
 cast(Pid, Msg) ->
     gen_server:cast(Pid, {cast, Msg}).
@@ -59,9 +59,8 @@ clean(DownNode) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init(Sock) ->
-    gen_tcp:controlling_process(Sock, self()),
-    inet:setopts(Sock, [{active, true}]),
+init({Sock, Pid}) ->
+    gate:take_socket(Sock, Pid),
     {ok, #state{sock=Sock}}.
 
 %%--------------------------------------------------------------------
@@ -95,8 +94,9 @@ handle_call(_Request, _From, State) ->
 handle_cast({cast, Msg}, #state{chanel_state = CS
                                 , sock = Sock
                                } = State) ->
-    case Module:cast(Msg, CS) of
+    case catch Module:cast(Msg, CS) of
         {msg, Msg, CS1} -> gen_tcp:send(Sock, Msg);
+        % {'EXIT', _} -> CS1 = CS;
         CS1 -> ok
     end,
     {noreply, State#state{chanel_state = CS1}};
@@ -118,6 +118,7 @@ handle_cast(_Msg, State) ->
 handle_info({tcp, _Port, Msg} = _Info, #state{buffer = Buffer
                                               , chanel_state = CS
                                              } = State) ->
+    io:format("trace~n"),
     {Buffer1, CS1} = tcp_loop(Buffer ++ Msg, CS),
     {noreply, State#state{buffer = Buffer1
                           , chanel_state = CS1

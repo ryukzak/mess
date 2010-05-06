@@ -98,7 +98,7 @@ tcp_cast(["id", IdS, Xs, Ys], undefined) ->
                                                           , y = Y
                                                          })
                        end),
-    {ok, #state{id = Id, x = X, y = Y}}.
+    #state{id = Id, x = X, y = Y}.
 
 %%--------------------------------------------------------------------
 

@@ -13,6 +13,7 @@
 %% API
 -export([
          start_link/2
+         , take_socket/2
         ]).
 
 %% gen_server callbacks
@@ -35,7 +36,10 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Port, Module) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Port, Module], []).
+    gen_server:start_link(?MODULE, [Port, Module], []).
+
+take_socket(Sock, Pid) ->
+    gen_server:cast(Pid, {take_socket, Sock, self()}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -88,6 +92,12 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({take_socket, Sock, Pid}, State) ->
+    io:format("gate:take_socket: ~p~n", [{Sock, Pid}]),
+    inet:setopts(Sock, [{active, true}]),    
+    gen_tcp:controlling_process(Sock, Pid),
+    {noreply, State};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -102,14 +112,15 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({tcp_accept, Sock}, #state{module=Module} = State) ->
-    master_task_manager:add_atom_task(channel, start_link, [Sock, Module],
+    master_task_manager:add_atom_task(Module, start_link, [Sock, self()],
                                       [{type, otp}
                                        , {node, node()}
-                                       , {restart, {transient, 4, 2000}}
+                                       , {restart, temporary}
                                       ]),
 		{noreply, State};
 
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    error_logger:error_msg("Gate: wrong msg: ~p", [Info]), 
     {noreply, State}.
 
 %%--------------------------------------------------------------------

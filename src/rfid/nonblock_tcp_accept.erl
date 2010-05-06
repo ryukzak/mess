@@ -97,7 +97,8 @@ init_loop(Pid, LSock, TimeOut) ->
 
 loop({Pid, LSock, TimeOut} = State) ->
     case gen_tcp:accept(LSock, TimeOut) of
-        {ok, Sock} ->	Pid ! {tcp_accept, Sock};
+        {ok, Sock} -> gen_tcp:controlling_process(Sock, Pid),
+                      Pid ! {tcp_accept, Sock};
         {error, timeout} -> ok;
         {error, Reason} ->
             error_logger:error_msg("nonblock_tcp_accept error: ~p",
