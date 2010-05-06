@@ -32,7 +32,7 @@
 %%%===================================================================
 
 start_link(Sock) ->
-    gen_server:start_link(?MODULE, [Sock], []).
+    gen_server:start_link({?MODULE, Module}, Sock, []).
 
 cast(Pid, Msg) ->
     gen_server:cast(Pid, {cast, Msg}).
@@ -59,7 +59,7 @@ clean(DownNode) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Sock]) ->
+init(Sock) ->
     gen_tcp:controlling_process(Sock, self()),
     inet:setopts(Sock, [{active, true}]),
     {ok, #state{sock=Sock}}.
