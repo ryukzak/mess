@@ -1,5 +1,0 @@
-atom_task :: {function, enviroment, node}
-local_task :: {function, enviroment}
-global_task :: {function, enviroment}
-cluster_node :: {node}
-node_depended_table :: {table_name, column_name}
