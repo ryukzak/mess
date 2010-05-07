@@ -1,12 +1,8 @@
 -module(rfid_terminal).
 
--export([init/2
-         , tcp_cast/2
+-export([tcp_cast/2
          , cast/2
          , terminate/1
-         , enviroment/0
-         , enviroment_name/0
-         , init_bool/0
          , timeout/2
         ]).
 
@@ -18,34 +14,8 @@
 -define(TIMEOUT,1000).
 -include("rfid_head.hrl").
 
-%%------------------------------------------------------------------------------
 
-init_bool() -> false.
-
-%%------------------------------------------------------------------------------
-
-enviroment_name() ->
-    rfid.
-
-%%------------------------------------------------------------------------------
-
-enviroment() ->
-		{atomic, ok} =
-        mnesia:create_table(rfid_reader,
-                            [{attributes, record_info(fields, rfid_reader)}]),
-		{atomic, ok} =
-        mnesia:create_table(mark_info,
-                            [{attributes,record_info(fields, mark_info)}
-                             , {type, bag}
-                            ]),
-		ok.
-
-%%------------------------------------------------------------------------------
-
-init(_Msg, _State) ->
-    ok.
-
-%%------------------------------------------------------------------------------
+%%--------------------------------------------------------------------
 
 tcp_cast(["where", MidS], #state{request=Request} = State) ->
     Mid = list_to_integer(MidS),
@@ -57,7 +27,10 @@ tcp_cast(["where", MidS], #state{request=Request} = State) ->
     spawn(?MODULE, timeout, [self(), Mid]),
     State#state{request = [#request{mid = Mid,
                                     count = length(List)}
-                           | Request]}.
+                           | Request]};
+
+tcp_cast(Msg, undefined) ->
+    tcp_cast(Msg, #state{}).
 
 timeout(Pid, Mid) ->
     receive
@@ -65,7 +38,7 @@ timeout(Pid, Mid) ->
             Pid ! {timeout, Mid}
     end.
 
-%%------------------------------------------------------------------------------
+%%--------------------------------------------------------------------
 
 cast({radius, Mid, Rad, X, Y}, #state{request=Request} = State) ->
     Msg = "radius "
@@ -87,7 +60,7 @@ cast({timeout, Mid}, #state{request=Request} = State) ->
     {"end " ++ integer_to_list(Mid) ++ "\n",
      State#state{request = keydelete(Mid, 1, Request)}}.
 
-%%------------------------------------------------------------------------------
+%%--------------------------------------------------------------------
 
 terminate(_State) ->
     ok.

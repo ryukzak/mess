@@ -1,3 +1,4 @@
+
 %%%-------------------------------------------------------------------
 %%% @author Ryukzak Neskazov <>
 %%% @copyright (C) 2010, Ryukzak Neskazov
@@ -35,7 +36,7 @@
 -define(TIMEOUT,1000).
 -define(SLEEP,2000).
 -define(LOAD_SLEEP,10000).
--define(LOAD,40).
+-define(LOAD,37).
 
 -record(state,{}).
 
