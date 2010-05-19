@@ -23,11 +23,6 @@
 -define(SLEEP,timer:sleep(100)).
 -define(SSLEEP,timer:sleep(25)).
 
-% -define(N1,'node1@192.168.1.19').
-% -define(N2,'node2@192.168.1.19').
-% -define(N3,'node3@192.168.1.19').
-% -define(N4,'node4@192.168.1.19').
-
 -define(N1,'node1@127.0.0.1').
 -define(N2,'node2@127.0.0.1').
 -define(N3,'node3@127.0.0.1').
@@ -51,6 +46,7 @@
 %%--------------------------------------------------------------------
 
 init_per_suite(Config) ->
+    %% Runing 4 nodes.
     tc(fun() -> [ok,ok,ok,ok] =
                     rpc:parallel_eval([{cluster_SUITE, node_up, [?N1]}
                                        , {cluster_SUITE, node_up, [?N2]}
@@ -58,19 +54,21 @@ init_per_suite(Config) ->
                                        , {cluster_SUITE, node_up, [?N4]}
                                       ])
        end, "Node up"),
-    
+    %% uploading needed module on all node
     tc(fun() -> upload(?N1),
                 upload(?N2),
                 upload(?N3),
                 upload(?N4)
        end,"Node upload system"),
     
+    %% Starting master applicaton on first node
     tc(fun() -> call(?N1, application, start, [master_node])
                 end,"Start master node"),
 
     spawn(?N1, application, start, [sasl]),
     
     ?SLEEP,
+    %% Starting application applicaton on other node
     tc(fun() -> connect(?N2,?N1),
                 connect(?N3,?N1),
                 connect(?N4,?N1)
